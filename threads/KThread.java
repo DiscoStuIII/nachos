@@ -282,7 +282,7 @@ public class KThread {
 	 * call is not guaranteed to return. This thread must not be the current
 	 * thread.
 	 */
-	// -- PE1 --
+	//PE1
 	public void join() {
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
 		Lib.assertTrue(this != currentThread);
@@ -421,6 +421,7 @@ public class KThread {
 	 * Tests whether this module is working.
 	 */
 	/*
+	//test original
 	public static void selfTest() {
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
 		
@@ -429,6 +430,7 @@ public class KThread {
 	}
 	*/
 	/*
+	//test join
 	public static void selfTest(){
 		Lib.debug(dbgThread,"Enter KThread.selfTest");
 		KThread t1=new KThread(new Runnable(){
@@ -453,12 +455,40 @@ public class KThread {
 		System.out.println("t1 joined");
 	}// seftTest();
 	*/
-	
+	/*
+	//test join, clase externa
 	public static void selfTest() {
 		// KThreadTest.runTest();
 		KThreadTest2.runTest();
 	}
+	*/
 
+
+	public static void selfTest(){
+		Lib.debug(dbgThread, "Enter KThread.selfTest");
+		ThreadedKernel.alarm.waitUntil((long)2000);
+		KThread t1 = new KThread(new Runnable(){
+			public void run(){
+				System.out.println("about to make t2");
+				KThread t2 = new KThread(new Runnable(){
+					public void run(){
+						System.out.println("inside t2");
+						ThreadedKernel.alarm.waitUntil((long)3000);
+						}
+					});
+				System.out.println("t2 about to fork");
+				t2.fork();
+				ThreadedKernel.alarm.waitUntil((long)4000);
+				System.out.println("t2 forked");
+				t2.join();
+				System.out.println("t2 joined");
+			}
+		});
+		System.out.println("t1 about to fork");
+		t1.fork();
+		System.out.println("t1 forked");t1.join();
+		System.out.println("t1 joined");
+	}// seftTest(); 
 
 
 
