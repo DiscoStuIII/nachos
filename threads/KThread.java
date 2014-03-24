@@ -462,8 +462,8 @@ public class KThread {
 		KThreadTest2.runTest();
 	}
 	*/
-
-
+	/*
+	//test waitUntil
 	public static void selfTest(){
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
 		ThreadedKernel.alarm.waitUntil((long)2000);
@@ -478,7 +478,7 @@ public class KThread {
 					});
 				System.out.println("t2 about to fork");
 				t2.fork();
-				ThreadedKernel.alarm.waitUntil((long)4000);
+				ThreadedKernel.alarm.waitUntil((long)1000);
 				System.out.println("t2 forked");
 				t2.join();
 				System.out.println("t2 joined");
@@ -489,6 +489,11 @@ public class KThread {
 		System.out.println("t1 forked");t1.join();
 		System.out.println("t1 joined");
 	}// seftTest(); 
+	*/
+	//test condition2, clase externa
+	public static void selfTest() {
+		Condition2Test.runTest();
+	}
 
 
 
