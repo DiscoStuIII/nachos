@@ -87,10 +87,94 @@ public class Communicator {
 
 		int msg = message;
 		//DEBUG
-		System.out.println("LISTENED TO -> " + msg);
+		//System.out.println("LISTENED TO -> " + msg);
 
 		mutex.release();
 
 		return msg;
 	}
+
+
+
+	// --- COMMUNICATOR TEST ---
+private static class TestListener implements Runnable {
+	   
+		private Communicator aLink;
+	   
+		public TestListener(Communicator aLink)
+		{
+				this.aLink=aLink;              
+		}
+	   
+		public void run(){
+				System.out.println("Message Received: " +aLink.listen());
+		}      
+	}
+   
+	private static class TestSpeaker implements Runnable {
+	   
+		private Communicator aLink;
+		private int msg;
+	   
+		public TestSpeaker(Communicator aLink, int msg)
+		{
+				this.aLink=aLink;
+				this.msg = msg;
+		}
+	   
+		public void run(){      
+				System.out.println("Speaker says: " + msg);
+				aLink.speak(msg);
+		}
+	   
+	}
+   
+	public static void selfTest() {
+		System.out.println("Communicator Self Test:\n");
+		Communicator comm = new Communicator();
+
+		System.out.println("Case1: Speak then Listen");
+		KThread tmp1 = new KThread(new TestSpeaker(comm, 10));
+		tmp1.fork();
+		KThread tmp2 = new KThread(new TestListener(comm));
+		tmp2.fork();
+		tmp1.join();
+		tmp2.join();
+
+		System.out.println("Case2: Listen then Speak");
+		KThread tmp3 = new KThread(new TestListener(comm));
+		KThread tmp4 = new KThread(new TestSpeaker(comm, 20));
+		tmp3.fork();
+		tmp4.fork();
+		tmp3.join();
+		tmp4.join();
+
+		System.out.println("Case3: Queued Speakers and Listeners");
+		KThread tmp5 = new KThread(new TestSpeaker(comm, 30));
+		KThread tmp6 = new KThread(new TestSpeaker(comm, 40));
+		KThread tmp9 = new KThread(new TestSpeaker(comm, 50));
+		KThread tmp10 = new KThread(new TestSpeaker(comm, 60));
+		KThread tmp7 = new KThread(new TestListener(comm));
+		KThread tmp8 = new KThread(new TestListener(comm));
+		KThread tmp11 = new KThread(new TestListener(comm));
+		KThread tmp12 = new KThread(new TestListener(comm));
+		tmp5.fork();
+		tmp6.fork();
+		tmp7.fork();
+		tmp8.fork();
+		tmp9.fork();
+		tmp10.fork();
+		tmp11.fork();
+		tmp12.fork();
+		tmp5.join();
+		tmp6.join();
+		tmp7.join();
+		tmp8.join();
+		tmp9.join();
+		tmp10.join();
+		tmp11.join();
+		tmp12.join();
+		System.out.println("");
+	}
+	// --- COMMUNICATOR TEST ---
 }

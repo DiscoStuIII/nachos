@@ -78,7 +78,7 @@ public class Alarm {
 			waitQueue.offer(e);	//guardar con offer
 			KThread.sleep();	//elimina busy waiting
 			Machine.interrupt().restore(intStatus);
-		} else return;
+		}
 	}
 
 
@@ -106,4 +106,49 @@ public class Alarm {
 	}
 
 	private PriorityQueue<ThreadTime> waitQueue = new PriorityQueue<ThreadTime>();
+
+	// --- ALARM TEST ---
+	private static class AlarmTest implements Runnable {
+		AlarmTest(long waitTime){
+				this.wait = waitTime;
+		}
+	   
+		public void run(){
+				System.out.print("Calling WaitUntil\t");
+				System.out.println( "Wait time: " + wait);
+				System.out.println("Current time " + Machine.timer().getTime() );
+				ThreadedKernel.alarm.waitUntil(wait);
+				System.out.print("Returned from waitUntil");
+				System.out.println("Current time " + Machine.timer().getTime() );
+		}
+	   
+		long wait;
+	}
+   
+	public static void selfTest(){
+		System.out.println("Alarms self test");
+	   
+		System.out.println("Test 1: Sleep time negative");
+		KThread thread = new KThread( new AlarmTest(-10) );
+		thread.setName("AlarmTest").fork();
+		thread.join();
+	   
+		System.out.println("\nTest 2: Sleep time 0");
+		thread = new KThread( new AlarmTest(0) );
+		thread.setName("AlarmTest").fork();
+		thread.join();
+	   
+		System.out.println("\nTest 3: Sleep time smaller than 500");
+		thread = new KThread( new AlarmTest(200) );
+		thread.setName("AlarmTest").fork();
+		thread.join();
+	   
+		System.out.println("\nTest 4: Sleep time greater than 500");
+		thread = new KThread( new AlarmTest(700) );
+		thread.setName("AlarmTest").fork();
+		thread.join();
+	   
+		System.out.println("");
+	}
+	// --- ALARM TEST ---
 }

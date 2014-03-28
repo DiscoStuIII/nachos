@@ -1,4 +1,5 @@
 nachos
 ======
 
-nachos for CC7
+nachos
+for CC7 @ UG

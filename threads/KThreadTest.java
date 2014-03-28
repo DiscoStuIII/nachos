@@ -4,7 +4,7 @@ import nachos.machine.*;
 /**
  * A Tester for the join() implementation.
  */
-public class KThreadTest2 {
+public class KThreadTest {
 
     /**
      * LoopThread class, which implements a KThread that simply prints out numbers in sequence.

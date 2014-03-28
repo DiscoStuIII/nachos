@@ -417,92 +417,118 @@ public class KThread {
 	private int which;
 	}
 
-	/**
-	 * Tests whether this module is working.
-	 */
-	/*
-	//test original
-	public static void selfTest() {
-		Lib.debug(dbgThread, "Enter KThread.selfTest");
-		
-		new KThread(new PingTest(1)).setName("forked thread").fork();
-		new PingTest(0).run();
-	}
-	*/
-	/*
-	//test join
-	public static void selfTest(){
-		Lib.debug(dbgThread,"Enter KThread.selfTest");
-		KThread t1=new KThread(new Runnable(){
-			public void run(){
-				System.out.println("about to make t2");
-				KThread t2=new KThread(new Runnable(){
-					public void run(){
-						System.out.println("inside t2");
-					}
-				});
-				System.out.println("t2 about to fork");
-				t2.fork();
-				System.out.println("t2 forked");
-				t2.join();
-				System.out.println("t2 joined");
-			}
-		});
-		System.out.println("t1 about to fork");
-		t1.fork();
-		System.out.println("t1 forked");
-		t1.join();
-		System.out.println("t1 joined");
-	}// seftTest();
-	*/
 	/*
 	//test join, clase externa
 	public static void selfTest() {
-		// KThreadTest.runTest();
-		KThreadTest2.runTest();
+		KThreadTest.runTest();
 	}
 	*/
-	/*
-	//test waitUntil
-	public static void selfTest(){
-		Lib.debug(dbgThread, "Enter KThread.selfTest");
-		ThreadedKernel.alarm.waitUntil((long)2000);
-		KThread t1 = new KThread(new Runnable(){
-			public void run(){
-				System.out.println("about to make t2");
-				KThread t2 = new KThread(new Runnable(){
-					public void run(){
-						System.out.println("inside t2");
-						ThreadedKernel.alarm.waitUntil((long)3000);
-						}
-					});
-				System.out.println("t2 about to fork");
-				t2.fork();
-				ThreadedKernel.alarm.waitUntil((long)1000);
-				System.out.println("t2 forked");
-				t2.join();
-				System.out.println("t2 joined");
-			}
-		});
-		System.out.println("t1 about to fork");
-		t1.fork();
-		System.out.println("t1 forked");t1.join();
-		System.out.println("t1 joined");
-	}// seftTest(); 
-	*/
-	/*
-	//test condition2, clase externa
-	public static void selfTest() {
-		Condition2Test.runTest();
-	}
-	*/
+	
+
 	/*
 	//test communicator, clase externa
 	public static void selfTest() {
 		CommunicatorTest.runTest();
 	}
 	*/
-	
+
+	// --- KTHREAD TEST ---
+	public static void selfTest() {
+		Lib.debug(dbgThread, "Enter KThread.selfTest");
+	   
+		System.out.println("KThread Self Test:\n");
+		new KThread(new PingTest(1)).setName("forked thread").fork();
+		new PingTest(0).run();
+		System.out.println("");
+	   
+		KThread parent, parent1, parent2, child;
+	   
+		//Test 1: Join a  thread that has not started running
+		System.out.println("Test 1: Join a thread that has not started running");
+		child = new  KThread(new Child(2));
+		parent = new KThread(new Parent(0, child, 1));
+		parent.setName("Parent").fork();
+		currentThread.yield(); //run parent
+		child.setName("Child").fork();
+		currentThread.yield(); //run child
+		parent.join(); //wait for the test to finish
+	   
+		//Test 2: Join a thread that is running
+		System.out.println("\nTest 2: Join a thread that is running");
+		child = new  KThread(new Child(5));
+		parent = new KThread(new Parent(3,child, 1));
+		parent.setName("Parent").fork();
+		child.setName("Child").fork();
+		currentThread.yield(); //run both the child and the parent
+		parent.join(); //wait for test to finish
+	   
+		//Test 3: Join a thread that has finished
+		System.out.println("\nTest 3: Join a thread that has finished");
+		child = new  KThread(new Child(0));
+		parent = new KThread(new Parent(0,child,1));
+		child.setName("Child").fork();
+		currentThread.yield();
+		parent.setName("Parent").fork();
+		parent.join();
+	   
+		//Test 4: Have 3 threads  A, B, C, A join B, B join C
+		System.out.println( "\nTest 4: 3 threads Parent 1, Parent 2, Child. C join P1, P1 join P2");
+		child = new  KThread(new Child(5));
+		parent1 = new KThread(new Parent(4,child,1));
+		parent2 = new KThread(new Parent(3,parent1,2));
+		parent2.setName("Parent2").fork();
+		currentThread.yield();
+		parent1.setName("Parent1").fork();
+		currentThread.yield();
+		child.setName("Child").fork();
+		currentThread.yield();
+		parent2.join();
+	   
+		System.out.println("");
+	}
+
+	private static class Parent implements Runnable {
+		Parent( int count, KThread child, int id ) {
+				this.count = count;
+				this.child = child;
+				this.id = id;
+		}
+		public void run() {
+				System.out.println("Parent " + id + " started running");
+				//let the program run for a while
+				for( int i = 0; i < count; i++ ) {
+						System.out.println("Parent " + id + " Running");
+						//swap it out and let something else run
+						currentThread.yield();
+				}
+				System.out.println("Parent " + id + " Calling join()");
+				this.child.join();
+				System.out.println("Parent " + id + " Returned from join()");
+				System.out.println("Parent " + id + " finished running");
+		}
+		private KThread child;
+		private int count;
+		private int id;
+	}
+   
+	private static class Child implements Runnable {
+		Child( int count ) {
+				this.count = count;
+		}
+		public void run() {
+				System.out.println("Child Started Running");
+				for( int i = 0; i < count; i++ ) {
+						System.out.println("Child Running");
+						//swap it out and let something else run
+						currentThread.yield();
+				}
+				System.out.println("Child Finished Running");
+		}
+		int count;
+	}
+	// --- KTHREAD TEST ---
+
+	/*
 	//test communicator, tres listeners y speakers
 	public static void selfTest() {
 		System.out.println(">>> Enter Communicator.selfTest <<<");
@@ -555,41 +581,132 @@ public class KThread {
 
 		System.out.println(">>> End Communicator.selfTest <<<");
 	}// seftTest();
-	
+	*/
 	/*
-	//test communicator, un listener y speaker
 	public static void selfTest() {
-	System.out.println(">>> Enter Communicator.selfTest <<<");
+		System.out.println(">>> Enter Communicator.selfTest <<<");
 
-	KThread parent = new KThread(new Runnable() {
-	Communicator c = new Communicator();
-	Speaker s = new Speaker(0xdeadbeef, c);
-	Listener l = new Listener(c);
+		KThread parent = new KThread(new Runnable() {
 
-	KThread thread1 = new KThread(s).setName("Speaker Thread");
-	KThread thread2 = new KThread(l).setName("Listener Thread");
+			Integer val_trans0 = 111;
+			Integer val_trans1 = 222;
+			Integer val_trans2 = 333;
+			Integer val_trans3 = 444;
+			Integer val_trans4 = 555;
+			Integer val_trans5 = 666;
 
-	public void run() {
-	thread1.fork();
-	thread2.fork();
+			Communicator c = new Communicator();
 
-	thread1.join();
-	thread2.join();
+			Speaker s0 = new Speaker(val_trans0, c);
+			Listener l0 = new Listener(c);
 
-	System.out.println("Incorrect Message recieved?");
-	Lib.assertTrue(0xdeadbeef == l.getMessage());
-	}
-	});
-	System.out.println("t1 about to fork");
-	parent.fork();
-	System.out.println("t1 forked");
-	parent.join();
-	System.out.println("t1 joined");
+			Speaker s1 = new Speaker(val_trans1, c);
+			Listener l1 = new Listener(c);
 
-	System.out.println(">>> End Communicator.selfTest <<<");
+			Speaker s2 = new Speaker(val_trans2, c);
+			Listener l2 = new Listener(c);
+
+			Speaker s3 = new Speaker(val_trans3, c);
+			Listener l3 = new Listener(c);
+
+			Speaker s4 = new Speaker(val_trans4, c);
+			Listener l4 = new Listener(c);
+
+			Speaker s5 = new Speaker(val_trans5, c);
+			Listener l5 = new Listener(c);
+
+			KThread t01 = new KThread(s0).setName("Speaker_01 ");
+			KThread t04 = new KThread(l0).setName("Listener_04");
+
+			KThread t02 = new KThread(s1).setName("Speaker_02 ");
+			KThread t05 = new KThread(l1).setName("Listener_05");
+			
+			KThread t03 = new KThread(s2).setName("Speaker_03 ");
+			KThread t06 = new KThread(l2).setName("Listener_06");
+			
+			KThread t10 = new KThread(s3).setName("Speaker_10 ");
+			KThread t07 = new KThread(l3).setName("Listener_07");
+			
+			KThread t11 = new KThread(s4).setName("Speaker_11 ");
+			KThread t08 = new KThread(l4).setName("Listener_08");
+	
+			KThread t12 = new KThread(s5).setName("Speaker_12 ");
+			KThread t09 = new KThread(l5).setName("Listener_09");
+
+			public void run() {
+				t01.fork();//Speaker	111
+				t02.fork();//Speaker	222
+				t03.fork();//Speaker	333
+				t04.fork();//Listener	> 111
+				t05.fork();//Listener	> 
+				t06.fork();//Listener	0,
+				t07.fork();//Listener	0,
+				t08.fork();//Listener	0,
+				t09.fork();//Listener	0,
+				t10.fork();//Speaker	444
+				t11.fork();//Speaker	555
+				t12.fork();//Speaker	666
+				
+				t01.join();//Speaker	111
+				t02.join();//Speaker	222
+				t03.join();//Speaker	333
+				t04.join();//Listener	
+				t05.join();//Listener
+				t06.join();//Listener
+				t07.join();//Listener
+				t08.join();//Listener
+				t09.join();//Listener
+				t10.join();//Speaker	444
+				t11.join();//Speaker	555
+				t12.join();//Speaker	666
+			}
+		});
+		System.out.println(">>> parent about to fork");
+		parent.fork();
+		System.out.println(">>> parent forked");
+		parent.join();
+		System.out.println(">>> parent joined");
+
+		System.out.println(">>> End Communicator.selfTest <<<");
 	}// seftTest();
 	*/
 
+	/*
+	//test communicator, un listener y speaker
+	public static void selfTest() {
+		System.out.println(">>> Enter Communicator.selfTest <<<");
+
+		KThread parent = new KThread(new Runnable() {
+		Communicator c = new Communicator();
+		Speaker s = new Speaker(0xdeadbeef, c);
+		Listener l = new Listener(c);
+
+		KThread thread1 = new KThread(s).setName("Speaker Thread");
+		KThread thread2 = new KThread(l).setName("Listener Thread");
+
+		public void run() {
+		thread1.fork();
+		thread2.fork();
+
+		thread1.join();
+		thread2.join();
+
+		System.out.println("Incorrect Message recieved?");
+		Lib.assertTrue(0xdeadbeef == l.getMessage());
+		}
+		});
+		System.out.println("t1 about to fork");
+		parent.fork();
+		System.out.println("t1 forked");
+		parent.join();
+		System.out.println("t1 joined");
+
+		System.out.println(">>> End Communicator.selfTest <<<");
+	}// seftTest();
+	*/
+	
+	/*
+	// --- COMMUNICATOR TEST ---
 	private static class Listener implements Runnable {
 		private int msg;
 		private Communicator commu;
@@ -601,15 +718,15 @@ public class KThread {
 		}
 
 		public void run() {
-			System.out.println("Listener Listening!");
+			System.out.println("Listener Listening! <" + msg + ">");
 			msg = commu.listen();
-			System.out.println("Listener Return!");
+			System.out.println("Listener Return! <" + msg + ">");
 			hasRun = true;
 		}
 
 		private int getMessage() {
-			System.out.println("Listener has not finished running?");
-			//Lib.assertTrue(hasRun);
+			System.out.println("Listener has not finished running? <" + hasRun+ ">");
+			Lib.assertTrue(hasRun);
 			return msg;
 		}
 	}
@@ -622,16 +739,15 @@ public class KThread {
 			this.msg = msg;
 			this.commu = commu;
 		}
+
 		public void run() {
-			System.out.println("Speaker Speaking! -> " + msg);
+			System.out.println("Speaker Speaking! <" + msg + ">");
 			commu.speak(msg);
-			System.out.println("Speaker Return! -> " + msg);
+			System.out.println("Speaker Return! <" + msg + ">");
 		}
 	}
-
-
-
-
+	// --- COMMUNICATOR TEST ---
+	*/
 
 	private static final char dbgThread = 't';
 
