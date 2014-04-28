@@ -6,7 +6,6 @@ import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.PriorityQueue;
-import java.util.LinkedList;
 
 /**
  * A scheduler that chooses threads based on their priorities.
@@ -130,36 +129,10 @@ public class PriorityScheduler extends Scheduler {
 	 * @return	the scheduling state of the specified thread.
 	 */
 	protected ThreadState getThreadState(KThread thread) {
-	if (thread.schedulingState == null)
-		thread.schedulingState = new ThreadState(thread);
+		if (thread.schedulingState == null)
+			thread.schedulingState = new ThreadState(thread);
 
-	return (ThreadState) thread.schedulingState;
-	}
-
-	//cambiar la prioridad a traves de setEffectivePriority
-	static protected void changeEffectivePriority (PriorityQueue pq, ThreadState ts, int val) {
-
-		//no hay colas de espera, cambiar y regresar
-		if (pq == null) {
-			ts.setEffectivePriority(val);
-			return;
-		}
-
-		//remover, actualizar y colocar
-		pq.myqueue.remove(ts);
-		ts.setEffectivePriority(val);
-		pq.myqueue.add(ts);
-
-		//si la ultima donacion no corresponde con el thread de turno
-		if (pq.lastDonation != pq.myqueue.peek().getEffectivePriority()) {
-			//quitar donacion y hacer la nueva
-			if (pq.transferPriority) {
-				pq.holder.revoke(pq.lastDonation);
-				pq.holder.donate(val);
-			}
-			pq.lastDonation = val;
-		}
-
+		return (ThreadState) thread.schedulingState;
 	}
 
 	/**
@@ -170,7 +143,8 @@ public class PriorityScheduler extends Scheduler {
 			this.transferPriority = transferPriority;
 		}
 
-		//cambiar el dueno del lock y trasladar la donacion
+		//quitar donacion al holder actual
+		//cambiar holder y hacer donacion
 		private ThreadState updateHolder (ThreadState ts) {
 			if ((holder != null) && transferPriority)
 				holder.revoke(lastDonation);
@@ -188,15 +162,11 @@ public class PriorityScheduler extends Scheduler {
 
 			ThreadState ts = getThreadState(thread);
 
-			//ASSERT - el holder se esta esperando a si mismo
-			//if ((holder == ts) && transferPriority)
-			//	updateHolder(null);
-
 			getThreadState(thread).waitForAccess(this);
 
-			//no esta en cola de espera
-			if (!myqueue.contains(ts))
-				myqueue.add(getThreadState(thread));
+			//agregar si no esta en cola de espera
+			if (!threadQueue.contains(ts))
+				threadQueue.add(getThreadState(thread));
 
 			if (ts.getEffectivePriority() > lastDonation) {
 				//actualizar prioridad
@@ -221,18 +191,19 @@ public class PriorityScheduler extends Scheduler {
 			//el actual se retira
 			updateHolder(null);
 
-			ThreadState ts = myqueue.poll();
+			ThreadState ts = threadQueue.poll();
 
-			if (myqueue.size() > 0)
-				lastDonation = myqueue.peek().getEffectivePriority();
+			if (threadQueue.size() > 0)
+				lastDonation = threadQueue.peek().getEffectivePriority();
 			else
 				lastDonation = 0;
 
+			//nuevo holder
 			updateHolder(ts);
 
-			//limpiar cola asociada, el thread esta en ejecucion, no esperando
+			//limpiar cola asociada, el thread ahora esta en ejecucion, no esperando
 			if (ts != null) {
-				ts.queue = null;
+				ts.waitingOnQueue = null;
 				return ts.thread;
 			} else {
 				return null;
@@ -247,7 +218,7 @@ public class PriorityScheduler extends Scheduler {
 		 *		return.
 		 */
 		protected ThreadState pickNextThread() {
-			return myqueue.peek();
+			return threadQueue.peek();
 		}
 		
 		public void print() {
@@ -261,8 +232,8 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public boolean transferPriority;
 
-		//cola de threads en espera
-		private java.util.PriorityQueue<ThreadState> myqueue = new java.util.PriorityQueue<ThreadState>();
+		//cola de threads
+		private java.util.PriorityQueue<ThreadState> threadQueue = new java.util.PriorityQueue<ThreadState>();
 		private ThreadState holder = null;
 		private int lastDonation = 0;
 	}
@@ -289,6 +260,7 @@ public class PriorityScheduler extends Scheduler {
 			
 			setPriority(priorityDefault);
 
+			//llevar control de donaciones para actualizar mas rapidamente
 			for (int i=0; i<donations.length; i++)
 				donations[i] = 0;
 		}
@@ -311,10 +283,6 @@ public class PriorityScheduler extends Scheduler {
 			return effectivePriority;
 		}
 
-		public void setEffectivePriority (int val) {
-			effectivePriority = val;
-		}
-
 		/**
 		 * Set the priority of the associated thread to the specified value.
 		 *
@@ -327,7 +295,7 @@ public class PriorityScheduler extends Scheduler {
 			this.priority = priority;
 			//cambiar la prioridad y actualizar lista
 			if (priority > effectivePriority)
-				PriorityScheduler.changeEffectivePriority(queue, this, priority);
+				changeEffectivePriority(waitingOnQueue, this, priority);
 		}
 
 		/**
@@ -346,7 +314,7 @@ public class PriorityScheduler extends Scheduler {
 			//tiempo que se puso en cola para ordenar
 			time = Machine.timer().getTime();
 			//cola de espera del thread
-			queue = waitQueue;
+			waitingOnQueue = waitQueue;
 		}
 
 		/**
@@ -360,15 +328,17 @@ public class PriorityScheduler extends Scheduler {
 		 * @see	nachos.threads.ThreadQueue#nextThread
 		 */
 		public void acquire (PriorityQueue waitQueue) {
+			//actualizar holder
+			//se realiza en nextThread()
 		}
 
 		public void donate (int val) {
 			donations[val]++;
 
-			//actualiza prioridad y lista
+			//actualiza prioridad y cola
 			if (val > effectivePriority) {
 				effectivePriority = val;
-				PriorityScheduler.changeEffectivePriority(queue, this, effectivePriority);
+				changeEffectivePriority(waitingOnQueue, this, effectivePriority);
 			}
 		}
 
@@ -378,6 +348,7 @@ public class PriorityScheduler extends Scheduler {
 			int newPrio = priority;
 
 			//revisar si queda alguna donacion
+			//revisar el arreglo es mas rapido que ir a ver las colas buscando que donacion es necesaria
 			for (int i=priority; i<donations.length; i++) {
 				if (donations[i] > 0)
 					newPrio = i;
@@ -385,7 +356,30 @@ public class PriorityScheduler extends Scheduler {
 
 			if (newPrio != effectivePriority) {
 				effectivePriority = newPrio;
-				PriorityScheduler.changeEffectivePriority(queue, this, effectivePriority);
+				changeEffectivePriority(waitingOnQueue, this, effectivePriority);
+			}
+		}
+
+		public void changeEffectivePriority (PriorityQueue pq, ThreadState ts, int val) {
+			//no hay colas de espera, cambiar y regresar
+			if (pq == null) {
+				ts.effectivePriority = val;
+				return;
+			}
+
+			//remover, actualizar y colocar
+			pq.threadQueue.remove(ts);
+			ts.effectivePriority = val;
+			pq.threadQueue.add(ts);
+
+			//si la ultima donacion no corresponde con el thread de turno
+			if (pq.lastDonation != pq.threadQueue.peek().getEffectivePriority()) {
+				//quitar donacion y hacer la nueva
+				if (pq.transferPriority) {
+					pq.holder.revoke(pq.lastDonation);
+					pq.holder.donate(val);
+				}
+				pq.lastDonation = val;
 			}
 		}
 
@@ -412,7 +406,7 @@ public class PriorityScheduler extends Scheduler {
 		protected long time = Long.MAX_VALUE;
 
 		//cola de espera
-		protected PriorityQueue queue = null;
+		protected PriorityQueue waitingOnQueue = null;
 
 		//donaciones realizadas
 		protected int donations[] = new int[PriorityScheduler.priorityMaximum];
@@ -670,4 +664,3 @@ class Test4 {
         }
     }
 }
-
