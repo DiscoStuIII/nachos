@@ -107,7 +107,14 @@ public class KThread {
 	public String getName() {
 	return name;
 	}
-
+	 /**
+     * Get the id of this thread. This had to be put in for compare inside of
+     * <tt>ThreadState</tt> to work on threads that have been queued at the
+     * same time and with the same priority.
+     */
+    public int getId() {
+        return id;
+    }
 	/**
 	 * Get the full name of this thread. This includes its name along with its
 	 * numerical ID. This name is used for debugging purposes only.
