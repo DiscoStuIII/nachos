@@ -152,7 +152,7 @@ public class Boat
 				boatMutex.release();
 			} else {
 				boatMutex.release();			
-				KThread.sleep();
+				this.sleep();
 
 			}			
 		} else {

@@ -53,6 +53,8 @@ public class KThreadTest {
 	private String name;
 	private KThread thread1;
 	private KThread thread2;
+	Boat b = new Boat();
+	b.selfTest();
     }
 
     /**
@@ -60,7 +62,7 @@ public class KThreadTest {
      */
     public static void runTest() {
 	System.out.println("**** KThread Join test START ****");
-	
+
 	/* Create 3 LoopThread */
 	KThread loopThreads[] = new KThread[3];
 	for (int i=0; i < 3; i++) {
