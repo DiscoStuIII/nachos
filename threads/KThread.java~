@@ -442,6 +442,99 @@ public class KThread {
 	// --- KTHREAD TEST ---
 	public static void selfTest() {
 	
+		Lib.debug(dbgThread, "Enter KThread.selfTest");
+	   
+		System.out.println("KThread Self Test:\n");
+		new KThread(new PingTest(1)).setName("forked thread").fork();
+		new PingTest(0).run();
+		System.out.println("");
+	   
+		KThread parent, parent1, parent2, child;
+	   
+		//Test 1: Join a  thread that has not started running
+		System.out.println("Test 1: Join a thread that has not started running");
+		child = new  KThread(new Child(2));
+		parent = new KThread(new Parent(0, child, 1));
+		parent.setName("Parent").fork();
+		currentThread.yield(); //run parent
+		child.setName("Child").fork();
+		currentThread.yield(); //run child
+		parent.join(); //wait for the test to finish
+	   
+		//Test 2: Join a thread that is running
+		System.out.println("\nTest 2: Join a thread that is running");
+		child = new  KThread(new Child(5));
+		parent = new KThread(new Parent(3,child, 1));
+		parent.setName("Parent").fork();
+		child.setName("Child").fork();
+		currentThread.yield(); //run both the child and the parent
+		parent.join(); //wait for test to finish
+	   
+		//Test 3: Join a thread that has finished
+		System.out.println("\nTest 3: Join a thread that has finished");
+		child = new  KThread(new Child(0));
+		parent = new KThread(new Parent(0,child,1));
+		child.setName("Child").fork();
+		currentThread.yield();
+		parent.setName("Parent").fork();
+		parent.join();
+	   
+		//Test 4: Have 3 threads  A, B, C, A join B, B join C
+		System.out.println( "\nTest 4: 3 threads Parent 1, Parent 2, Child. C join P1, P1 join P2");
+		child = new  KThread(new Child(5));
+		parent1 = new KThread(new Parent(4,child,1));
+		parent2 = new KThread(new Parent(3,parent1,2));
+		parent2.setName("Parent2").fork();
+		currentThread.yield();
+		parent1.setName("Parent1").fork();
+		currentThread.yield();
+		child.setName("Child").fork();
+		currentThread.yield();
+		parent2.join();
+	   
+		System.out.println("");
+
+
+	}
+
+	private static class Parent implements Runnable {
+		Parent( int count, KThread child, int id ) {
+				this.count = count;
+				this.child = child;
+				this.id = id;
+		}
+		public void run() {
+				System.out.println("Parent " + id + " started running");
+				//let the program run for a while
+				for( int i = 0; i < count; i++ ) {
+						System.out.println("Parent " + id + " Running");
+						//swap it out and let something else run
+						currentThread.yield();
+				}
+				System.out.println("Parent " + id + " Calling join()");
+				this.child.join();
+				System.out.println("Parent " + id + " Returned from join()");
+				System.out.println("Parent " + id + " finished running");
+		}
+		private KThread child;
+		private int count;
+		private int id;
+	}
+   
+	private static class Child implements Runnable {
+		Child( int count ) {
+				this.count = count;
+		}
+		public void run() {
+				System.out.println("Child Started Running");
+				for( int i = 0; i < count; i++ ) {
+						System.out.println("Child Running");
+						//swap it out and let something else run
+						currentThread.yield();
+				}
+				System.out.println("Child Finished Running");
+		}
+		int count;
 	}
 	// --- KTHREAD TEST ---
 

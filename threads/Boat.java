@@ -15,15 +15,21 @@ public class Boat
     static int numOAdult;   
     static int numMAdult;    	
     static int boatLocation; //0 = Oahu, 1 = Molokai
-    static boolean synchro;
+    static boolean locker;
 	
+    static Condition2 in_boat ; //People in boat
+    static Condition2 m_child ; //Groups children at Molokai
+    static Condition2 m_adult ; //Groups adults at Molokai
+    static Condition2 o_child ; //Groups children at Oahu
+    static Condition2 o_adult ; //Groups adults at Oahu
+
 
     public static void selfTest()
     {
 	BoatGrader b = new BoatGrader();
 	
-	System.out.println("\n ***Testing Boats with only 2 children***");
-	begin(0, 2, b);
+//	System.out.println("\n ***Testing Boats with only 2 children***");
+	begin(3, 3, b);
 
 //	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
 //  	begin(1, 2, b);
@@ -49,7 +55,15 @@ public class Boat
 	inBoat = 0;
   	boatLocation = 0;
         finish = false;
-	synchro = false;
+	locker = true;
+	in_boat = new Condition2(boatMutex);
+	m_child = new Condition2(boatMutex);
+	m_adult = new Condition2(boatMutex);
+	o_child = new Condition2(boatMutex);
+	o_adult = new Condition2(boatMutex);
+
+	final Communicator comm = new Communicator();//Indicates when thread finish	
+
 	
 	// Create threads here. See section 3.4 of the Nachos for Java
 	// Walkthrough linked from the projects page.
@@ -78,6 +92,10 @@ public class Boat
 		finish = true; //Que todos terminen porque no hay suficientes 	
 				//ni;os para hacer que funcione
 	}
+	/*if(comm.listen() == 1) {
+		System.out.println("finished");
+	}*/
+
     }
 
     static void AdultItinerary() {
@@ -87,18 +105,16 @@ public class Boat
 	       bg.AdultRowToMolokai();
 	   indicates that an adult has rowed the boat across to Molokai
 	*/
-	int inBoat = 0;
 
 	boatMutex.acquire();
 	while( (numOChildren > 1) || (boatLocation == 1) ) {		
-		boatMutex.release();
-		KThread.sleep();
-		boatMutex.acquire();
+		o_adult.sleep();
 	}	
-	bg.AdultRowToOahu();
+	bg.AdultRowToMolokai();
 	numOAdult--;
 	numMAdult++;
-	boatLocation = 1;			
+	boatLocation = 1;
+	m_child.wake();			
 	boatMutex.release();
     }
 
@@ -107,41 +123,52 @@ public class Boat
 	boolean waitingFor = false;
 	while(!finish){
 		boatMutex.acquire();
-		while(currentLocation != boatLocation) { //wait for the boat
-			boatMutex.release();			
-			KThread.sleep();
-			boatMutex.acquire();
+		waitingFor = false;	
+		while(currentLocation != boatLocation || inBoat == 2) { //wait for the boat
+			if(currentLocation == 0) {			
+				m_child.wake();				
+				o_child.sleep();
+			} else {
+				o_child.wake();
+				m_child.sleep();
+			}
 		}
-
 		if(currentLocation == 0) {
-
 			if( numOChildren > 1) { 
-				childSemaphore.P();
-				while(inBoat != 2) {
-					if(waitingFor) {//Espero que ingrese el otro
-						boatMutex.release();	
-						KThread.sleep();
-						boatMutex.acquire();
+				//childSemaphore.P();
+				while(inBoat != 2 && locker) {
+					if(waitingFor) {//Wait for two	
+						o_child.sleep();
 					} else {
 						waitingFor = true;
 						inBoat++;
 					}
-				}				
+				}
+
+				
 				if(inBoat == 2) {
 					bg.ChildRowToMolokai();
 					inBoat--;
+					locker = false;
+					boatLocation = 1;
+					o_child.wake();
 				} else {
 					bg.ChildRideToMolokai();
+					numOChildren--;
+					numMChildren++;
+					numOChildren--;
+					numMChildren++;
 					inBoat--;
-					childSemaphore.V();
-					childSemaphore.V();
+					//childSemaphore.V();
+					//childSemaphore.V();
 					boatLocation = 1;
+					locker = true;
+					m_child.wake();
 				}
-				numOChildren--;
-				numMChildren++;
-				currentLocation = 1;	
+				currentLocation = 1;
+				//o_child.wake();
 				boatMutex.release();
-				KThread.sleep();
+				KThread.yield(); //Finish
 			} else if (numOAdult == 0 && numOChildren == 1) {
 				bg.ChildRowToMolokai();
 				numOChildren--;
@@ -150,9 +177,12 @@ public class Boat
 				finish = true;
 				currentLocation = 1;
 				boatMutex.release();
-			} else {
-				boatMutex.release();			
-				KThread.sleep();
+				//m_child.wake();
+				KThread.yield(); //Finish
+			} else { // Necesario ?
+				m_child.wake();			
+				boatMutex.release();
+				KThread.yield(); //Finish
 
 			}			
 		} else {
@@ -161,11 +191,13 @@ public class Boat
 			boatLocation = 0;
 			currentLocation = 0;
 			bg.ChildRowToOahu();
+			o_child.wake();//Necesario ?
+			o_adult.wake();
 			boatMutex.release();			
-			KThread.sleep();
+			KThread.yield(); //Finish
 		}
-		
 	}
+	System.out.println("Todo termino");
     }
 
     static void SampleItinerary()
