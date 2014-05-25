@@ -23,7 +23,6 @@ main() {
 	filedes = open(FNAME);
  	write(FNAME, buf, 1);
 	read(FNAME, buf2, 1);
-	filedes = close(FNAME);
 	read(FNAME, buf2, 10); 
 	//close(filedes); 
 	//filedes = open(FNAME); 

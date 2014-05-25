@@ -410,25 +410,6 @@ public class UserProcess {
     }
 
      /**
-     * Unlink, close when all process close it.
-     * name = virtual memory address of the filename 
-     */		
-
-    private int handleClose(int name) {
-	Lib.debug(dbgProcess, "syscall close: " + name); 
-
-	String filename = readVirtualMemoryString(name, 256);
-	if (filename == null) {
-		return -1;
-	}
- 
-	OpenFile file = Machine.stubFileSystem().remove(filename);  
-	
-	return 0;
-
-    }	
-
-     /**
      * Read a file.
      * name = virtual memory address of the filename 	
      * buff = to store what it reads

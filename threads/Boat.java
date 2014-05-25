@@ -7,13 +7,10 @@ public class Boat
 		    
     static Lock boatMutex; //Using booat
     static Lock inBoatMutex; //Using booat
-    static Semaphore childSemaphore; 
     static int inBoat;
     static boolean finish; //True when all finish
-    static int numOChildren;
-    static int numMChildren;				
-    static int numOAdult;   
-    static int numMAdult;    	
+    static int numOChildren;				
+    static int numOAdult;      	
     static int boatLocation; //0 = Oahu, 1 = Molokai
     static boolean locker;
 	
@@ -46,12 +43,9 @@ public class Boat
 
 	// Instantiate global variables here
 	numOChildren = children;
-	numMChildren = 0;
 	numOAdult = adults;
-	numMAdult = 0;
 	boatMutex = new Lock();
 	inBoatMutex = new Lock();
-	childSemaphore = new Semaphore(2);
 	inBoat = 0;
   	boatLocation = 0;
         finish = false;
@@ -61,9 +55,6 @@ public class Boat
 	m_adult = new Condition2(boatMutex);
 	o_child = new Condition2(boatMutex);
 	o_adult = new Condition2(boatMutex);
-
-	final Communicator comm = new Communicator();//Indicates when thread finish	
-
 	
 	// Create threads here. See section 3.4 of the Nachos for Java
 	// Walkthrough linked from the projects page.
@@ -89,12 +80,9 @@ public class Boat
 		t.fork();
         }
 	if (children<2 && adults == 0) {
-		finish = true; //Que todos terminen porque no hay suficientes 	
-				//ni;os para hacer que funcione
+		finish = true; //NOt enough childrens
 	}
-	/*if(comm.listen() == 1) {
-		System.out.println("finished");
-	}*/
+	
 
     }
 
@@ -112,7 +100,6 @@ public class Boat
 	}	
 	bg.AdultRowToMolokai();
 	numOAdult--;
-	numMAdult++;
 	boatLocation = 1;
 	m_child.wake();			
 	boatMutex.release();
@@ -135,7 +122,6 @@ public class Boat
 		}
 		if(currentLocation == 0) {
 			if( numOChildren > 1) { 
-				//childSemaphore.P();
 				while(inBoat != 2 && locker) {
 					if(waitingFor) {//Wait for two	
 						o_child.sleep();
@@ -155,31 +141,24 @@ public class Boat
 				} else {
 					bg.ChildRideToMolokai();
 					numOChildren--;
-					numMChildren++;
 					numOChildren--;
-					numMChildren++;
 					inBoat--;
-					//childSemaphore.V();
-					//childSemaphore.V();
 					boatLocation = 1;
 					locker = true;
 					m_child.wake();
 				}
 				currentLocation = 1;
-				//o_child.wake();
 				boatMutex.release();
 				KThread.yield(); //Finish
 			} else if (numOAdult == 0 && numOChildren == 1) {
 				bg.ChildRowToMolokai();
 				numOChildren--;
-				numMChildren++;
 				boatLocation = 1;
 				finish = true;
 				currentLocation = 1;
 				boatMutex.release();
-				//m_child.wake();
 				KThread.yield(); //Finish
-			} else { // Necesario ?
+			} else { 
 				m_child.wake();			
 				boatMutex.release();
 				KThread.yield(); //Finish
@@ -187,11 +166,10 @@ public class Boat
 			}			
 		} else {
 			numOChildren++;
-			numMChildren--;
 			boatLocation = 0;
 			currentLocation = 0;
 			bg.ChildRowToOahu();
-			o_child.wake();//Necesario ?
+			o_child.wake();
 			o_adult.wake();
 			boatMutex.release();			
 			KThread.yield(); //Finish

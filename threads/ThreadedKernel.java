@@ -53,16 +53,16 @@ public class ThreadedKernel extends Kernel {
 		//Condition2.selfTest();
 		//Communicator.selfTest();
 		
-		Boat b = new Boat();
-		b.selfTest();
+		//Boat b = new Boat();
+		//b.selfTest();
 
 		//PriorityScheduler.selfTest();
 
-		Semaphore.selfTest();
-		SynchList.selfTest();
-		if (Machine.bank() != null) {
-			ElevatorBank.selfTest();
-		}
+		//Semaphore.selfTest();
+		//SynchList.selfTest();
+		//if (Machine.bank() != null) {
+		//	ElevatorBank.selfTest();
+		//}
 	}
 	
 	/**

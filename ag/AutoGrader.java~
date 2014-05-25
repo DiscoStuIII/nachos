@@ -149,7 +149,7 @@ public class AutoGrader {
     }
     
     void run() {
-	//kernel.selfTest();
+	kernel.selfTest();
 	kernel.run();
 	kernel.terminate();
     }
