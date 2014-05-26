@@ -5,6 +5,7 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
+import java.util.Hashtable;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -27,6 +28,14 @@ public class UserProcess {
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+
+	table.put(0, UserKernel.console.openForReading());
+	table.put(1, UserKernel.console.openForWriting());
+
+	mutex.acquire();
+	processId = currentPID;
+	currentPID++;
+	mutex.release();
     }
     
     /**
@@ -133,15 +142,44 @@ public class UserProcess {
 
 	byte[] memory = Machine.processor().getMemory();
 	
-	// for now, just assume that virtual addresses equal physical addresses
+	//Check that the start of reading is in range of the memory 	
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
 
-	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(memory, vaddr, data, offset, amount);
+	//If what we read is in more than one page, then we have to check many pages :s
+
+	int firstPage = vaddr/pageSize;
+	int endPage = (vaddr + length)/pageSize;
+	int physicalOffset = vaddr % pageSize; 
+	int dataOffset = offset; //The offset of the array data
+	int ppn = 0; //physical page to get physical address
+	int paddr = 0;//physical address 	
+	int bytesCopy = 0; //How many bytes will copy from the page
+
+	int amount = 0; //returning value
+
+	//From the first page until the end page 
+	for(int i = firstPage; i <= endPage; i++) {
+		//Check how many of this page copy		
+		bytesCopy = Math.min(pageSize, length);	
+		
+		//Get physical address 
+		ppn = pageTable[i].ppn;
+		pageTable[i].used = true;
+		paddr = (ppn * pageSize) + physicalOffset;
+		
+		//Copy from memory, starting in the physical address to the data array, starting in dataOffset and ending in bytesCopy
+		System.arraycopy(memory, paddr, data, dataOffset, bytesCopy);
+		
+		//There will be no physical offset in the other pages		
+		physicalOffset = 0;
+		dataOffset = dataOffset + bytesCopy; //Change the data offset	
+		length = length - bytesCopy; 	//lenght now is lower
+		amount = amount + bytesCopy;
+	}
 
 	return amount;
-    }
+    }		
 
     /**
      * Transfer all data from the specified array to this process's virtual
@@ -176,12 +214,50 @@ public class UserProcess {
 
 	byte[] memory = Machine.processor().getMemory();
 	
+	/*Old one
 	// for now, just assume that virtual addresses equal physical addresses
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
 
 	int amount = Math.min(length, memory.length-vaddr);
 	System.arraycopy(data, offset, memory, vaddr, amount);
+	*/
+	
+	//Check that the start of writing is in range of the memory 	
+	if (vaddr < 0 || vaddr >= memory.length)
+	    return 0;
+
+	//If what we write is in more than one page, then we have to check many pages :s
+
+	int firstPage = vaddr/pageSize;
+	int endPage = (vaddr + length)/pageSize;
+	int physicalOffset = vaddr % pageSize; 
+	int dataOffset = offset; //The offset of the array data
+	int ppn = 0; //physical page to get physical address
+	int paddr = 0;//physical address 	
+	int bytesCopy = 0; //How many bytes will copy from the page
+
+	int amount = 0; //returning value
+
+	//From the first page until the end page 
+	for(int i = firstPage; i <= endPage; i++) {
+		//Check how many of this page copy		
+		bytesCopy = Math.min(pageSize, length);	
+		
+		//Get physical address 
+		ppn = pageTable[i].ppn;
+		pageTable[i].used = true;
+		paddr = (ppn * pageSize) + physicalOffset;
+		
+		//Copy from data, starting in the data offset to the memory, starting in paddr and ending in bytesCopy
+		System.arraycopy(data, dataOffset, memory, paddr, bytesCopy);
+		
+		//There will be no physical offset in the other pages		
+		physicalOffset = 0;
+		dataOffset = dataOffset + bytesCopy; //Change the data offset	
+		length = length - bytesCopy; 	//lenght now is lower
+		amount = amount + bytesCopy;
+	}
 
 	return amount;
     }
@@ -288,6 +364,18 @@ public class UserProcess {
 	    return false;
 	}
 
+	for(int i = 0; i<numPages; i++) {
+	    //See if there are pages avaible
+	    if(UserKernel.freePages() == 0) {
+		coff.close();
+		Lib.debug(dbgProcess, "\tinsufficient pages");
+	       	return false;
+	    }
+	    //Get pages
+	    pageTable[i].ppn = UserKernel.getPage();
+            //pageTable[i].used = true;
+	}
+
 	// load sections
 	for (int s=0; s<coff.getNumSections(); s++) {
 	    CoffSection section = coff.getSection(s);
@@ -297,9 +385,14 @@ public class UserProcess {
 
 	    for (int i=0; i<section.getLength(); i++) {
 		int vpn = section.getFirstVPN()+i;
-
+		/*
 		// for now, just assume virtual addresses=physical addresses
 		section.loadPage(i, vpn);
+		*/
+
+		//Coff is read only	
+		pageTable[vpn].readOnly = section.isReadOnly();
+		section.loadPage(i, pageTable[vpn].ppn);
 	    }
 	}
 	
@@ -339,90 +432,91 @@ public class UserProcess {
      * Handle the halt() system call. 
      */
     private int handleHalt() {
-
-	Machine.halt();
+	if(processId == 0) {
+		Machine.halt();
+		Lib.assertNotReached("Machine.halt() did not halt machine!");
+		return 0;
+	}	
 	
-	Lib.assertNotReached("Machine.halt() did not halt machine!");
-	return 0;
+	return -1;
     }
     
     /**
      * Create a new file.
-     * name = virtual memory address of the filename 
+     * filedesc = virtual memory address of the filename 
+     * tf = true to create, false to open
      */	
-    private int handleCreat(int name) { 
-	Lib.debug(dbgProcess, "syscall creat: " + name); 
+    private int handleCreat(int filedesc, boolean tf) { 
+	Lib.debug(dbgProcess, "syscall creat: " + filedesc); 
 
-	String filename = readVirtualMemoryString(name, 256);
-	if (filename == null) {
+	String filestring = readVirtualMemoryString(filedesc, 255);
+	if (filestring == null) {
+		Lib.debug(dbgProcess, "syscall creat error"); 
 		return -1;
 	}
  
-	OpenFile file = Machine.stubFileSystem().open(filename, true); 
+	OpenFile ofile = Machine.stubFileSystem().open(filestring, tf); 
 	
-	if (file == null) { 
+	if (ofile == null) { 
+		Lib.debug(dbgProcess, "syscall creat error");
 		return -1; 
 	} 
 	
-	return 1; 
+	int keyReturn = keyTable;
+	table.put(keyReturn, ofile);
+	keyTable++;
+
+	return keyReturn; 
     }	
 
      /**
      * Open a file.
-     * name = virtual memory address of the filename 
-     * practically the same as create
+     * filedesc = virtual memory address of the filename 
+     * practically the same as create, but with false
      */		
 
-    private int handleOpen(int name) {
-	Lib.debug(dbgProcess, "syscall open: " + name); 
-
-	String filename = readVirtualMemoryString(name, 256);
-	if (filename == null) {
-		return -1;
-	}
- 
-	OpenFile file = Machine.stubFileSystem().open(filename, false);  
-	
-	if (file == null) { 
-		return -1; 
-	} 
-	
-	return 1;
-
+    private int handleOpen(int filedesc) {
+	Lib.debug(dbgProcess, "syscall open: " + filedesc); 
+	return handleCreat(filedesc, false);
     }
      /**
-     * CLose a file.
-     * name = virtual memory address of the filename 
+     * Close a file.
+     * filedesc = virtual memory address of the filename 
      */		
 
-    private int handleClose(int name) {
-	Lib.debug(dbgProcess, "syscall close: " + name); 
+    private int handleClose(int filedesc) {
+	Lib.debug(dbgProcess, "syscall close: " + filedesc); 
 
-	String filename = readVirtualMemoryString(name, 256);
-	if (filename == null) {
+	OpenFile ofile = table.get(filedesc);
+	if (ofile == null) {
+		Lib.debug(dbgProcess, "syscall close error");	
 		return -1;
 	}
  
-	OpenFile file = Machine.stubFileSystem().remove(filename);  
+	ofile.close();
+	table.remove(filedesc);  
 	
 	return 0;
 
     }
 
      /**
-     * Unlink, close when all process close it.
-     * name = virtual memory address of the filename 
+     * Unlink, delete a file.
+     * filedesc = virtual memory address of the filename 
+     * filesystem.remove takes care of this :)
+     * Don't close the file, so don't go to table
      */		
 
-    private int handleClose(int name) {
-	Lib.debug(dbgProcess, "syscall close: " + name); 
+    private int handleUnlink(int filedesc) {
+	Lib.debug(dbgProcess, "syscall unlink: " + filedesc); 
 
-	String filename = readVirtualMemoryString(name, 256);
-	if (filename == null) {
+	String filestring = readVirtualMemoryString(filedesc, 255);
+	if (filestring == null) {
+		Lib.debug(dbgProcess, "syscall unlink error");
 		return -1;
 	}
  
-	OpenFile file = Machine.stubFileSystem().remove(filename);  
+	Machine.stubFileSystem().remove(filestring);  
 	
 	return 0;
 
@@ -430,45 +524,66 @@ public class UserProcess {
 
      /**
      * Read a file.
-     * name = virtual memory address of the filename 	
+     * filedesc = virtual memory address of the filename 	
      * buff = to store what it reads
      * length = how many bytes read
+     * OpenFile.read takes care of the pointer in the file :)
      */		
 
-    private int handleRead(int name, int buff, int length) {
-	Lib.debug(dbgProcess, "syscall read: " + name); 
-
-	String filename = readVirtualMemoryString(name, 256);	
-	OpenFile file = Machine.stubFileSystem().open(filename, false);
+    private int handleRead(int filedesc, int buff, int length) {
+	Lib.debug(dbgProcess, "syscall read: " + filedesc); 
 	
-	byte[] data = new byte[length];
-	int bytesRead = file.read(data, 0, length);
+	OpenFile ofile = table.get(filedesc);
+	if(ofile == null) {
+		Lib.debug(dbgProcess, "syscall read error");
+		return -1;
+	}	
 
+	byte[] data = new byte[length];
+	int bytesRead = ofile.read(data, 0, length);
+
+	/*put the data in buff*/
 	writeVirtualMemory(buff, data);
-	/* See whats read
+
+	/* See whats read*/
 	for(int i = 0; i < data.length; i++) {
 		System.out.println(data[i]);
 	}
-	*/
+	
+	
 	return bytesRead;
 
     }
 
      /**
      * Write in a file.
-     * name = virtual memory address of the filename 	
-     * buff = data towrite
+     * filedesc = virtual memory address of the filename 	
+     * buff = data to write
      * lenght = length of what we gona write
+     * OpenFile.write takes care of the pointer in the file :)
      */		
 
-    private int handleWrite(int name, int buff, int length) {
-	Lib.debug(dbgProcess, "syscall write: " + name); 
+    private int handleWrite(int filedesc, int buff, int length) {
+	Lib.debug(dbgProcess, "syscall write: " + filedesc); 
+	
+	String data = readVirtualMemoryString(buff, length);
 
-	String filename = readVirtualMemoryString(name, 256);	
-	String data = readVirtualMemoryString(buff, 256);	
-	OpenFile file = Machine.stubFileSystem().open(filename, false);
-		
-	int bytesWrite = file.write(data.getBytes(), 0, length);
+	OpenFile ofile = table.get(filedesc);
+	if(ofile == null) {
+		Lib.debug(dbgProcess, "syscall write error");
+		return -1;
+	}
+	
+	int bytesWrite = ofile.write(data.getBytes(), 0, length);
+	if(bytesWrite < length) {
+		Lib.debug(dbgProcess, "syscall write space error");
+		return -1;	
+	}
+
+	
+	/* See whats write*/
+	System.out.println(data);
+
 	return bytesWrite;
 
     }
@@ -518,7 +633,7 @@ public class UserProcess {
 	case syscallHalt:
 	    return handleHalt();
 	case syscallCreate:
-	    return handleCreat(a0);
+	    return handleCreat(a0, true);
 	case syscallOpen:
 	    return handleOpen(a0);
 	case syscallRead:
@@ -527,6 +642,8 @@ public class UserProcess {
 	    return handleWrite(a0,a1,a2);
 	case syscallClose:
 	    return handleClose(a0);
+	case syscallUnlink:
+	    return handleUnlink(a0);
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
 	    Lib.assertNotReached("Unknown system call!");
@@ -580,4 +697,18 @@ public class UserProcess {
 	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
+
+    /*Added */	
+    /*For Id process*/
+    private int processId;
+    public static int currentPID = 0;
+    /*Lock, always usefull*/
+    public static Lock mutex = new Lock();			
+    /*Page table*/
+    protected Hashtable<Integer, OpenFile> table = new Hashtable<Integer, OpenFile>();
+    protected int keyTable = 2; /*2 because 0 is for read and 1 is for write*/
+
+    	
+
+
 }

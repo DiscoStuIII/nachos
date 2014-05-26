@@ -16,20 +16,27 @@
 int
 main() {
 	
-    	int filedes, nbytes; 
+    	int filedesc; 
     	char buf[128], buf2[128]; 
 	buf[0] = 'a';
-	filedes = creat(FNAME);
-	filedes = open(FNAME);
- 	write(FNAME, buf, 1);
-	read(FNAME, buf2, 1);
-	filedes = close(FNAME);
-	read(FNAME, buf2, 10); 
-	//close(filedes); 
-	//filedes = open(FNAME); 
-	//nbytes = read(0, buf, 128); // no debe dar error y no debe hacer nada aun 
-	//write(1, buf, nbytes); // ya que estos 2 metodos son de consola close(filedes); 
-	//unlink();
+	buf[1] = 'b';
+	buf[2] = 'c';
+	filedesc = creat(FNAME);
+	filedesc = open(FNAME);
+ 	write(filedesc, buf, 3);
+	read(filedesc, buf2, 3);
+	close(filedesc);
+	filedesc = open(FNAME);
+	read(filedesc, buf2, 3);
+	close(filedesc);
+	read(filedesc, buf2, 1); 
+	filedesc = open(FNAME);
+	unlink(FNAME);
+	read(filedesc, buf2, 1);
+	close(filedesc);
+	open(filedesc);
+	read(filedesc, buf2, 1);
+
     	halt();
     	/* not reached */
 }

@@ -150,8 +150,8 @@ public class UserKernel extends ThreadedKernel {
     private static Coff dummy1 = null;
 
     /*Added, LinkedList of physical pages as recomended	and a lock*/
-    protected static LinkedList<Integer> physicPages;
-    protected static Lock mutex;
+    protected LinkedList<Integer> physicPages;
+    protected Lock mutex;
 
 
 }
