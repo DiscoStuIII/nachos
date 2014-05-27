@@ -20,7 +20,7 @@ main() {
 	read(filedesc, buf2, 3);
 	close(filedesc);
 	
-	exit(0);
+	exit(1);
 
     	halt();
     	/* not reached */

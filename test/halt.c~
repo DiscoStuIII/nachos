@@ -41,7 +41,7 @@ main() {
 	*/
 	
 	int childID = exec(childs, 0, buf);
-	join(childID, *status);
+	join(childID, status);
 	exit(0);	
 
     	halt();

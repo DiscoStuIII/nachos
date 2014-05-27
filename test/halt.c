@@ -42,7 +42,7 @@ main() {
 	
 	int childID = exec(childs, 0, buf);
 	join(childID, status);
-	exit(0);	
+	exit(1);	
 
     	halt();
     	/* not reached */

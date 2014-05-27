@@ -145,9 +145,10 @@ public class UserProcess {
 	byte[] memory = Machine.processor().getMemory();
 	
 	//Check that the start of reading is in range of the memory 	
-	if (vaddr < 0 || vaddr >= memory.length)
-	    return 0;
-
+	if (vaddr < 0 || vaddr >= memory.length) {
+		handleExit(0); //Invalid, then exit	    
+		return 0;
+	}
 	//If what we read is in more than one page, then we have to check many pages :s
 
 	int firstPage = vaddr/pageSize;
@@ -227,7 +228,8 @@ public class UserProcess {
 	
 	//Check that the start of writing is in range of the memory 	
 	if (vaddr < 0 || vaddr >= memory.length)
-	    return 0;
+		handleExit(0); //Invalid, then exit	    
+		return 0;
 
 	//If what we write is in more than one page, then we have to check many pages :s
 
@@ -646,13 +648,12 @@ public class UserProcess {
 	child.uted.join();
 	
 	//need to pass the status to an array of bytes
-	
-	//	test without passing it to bytes		
+			
 	writeVirtualMemory(status, Lib.bytesFromInt(childStatus));
 	children.remove(childrenId);	
 	
 	//Child finish because an error
-	if (childStatus < 0) {
+	if (childStatus == 0) {
 		Lib.debug(dbgProcess, "syscall join child with errors");
 		return 0;
 	}

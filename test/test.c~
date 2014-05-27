@@ -19,17 +19,7 @@ main() {
  	write(filedesc, buf, 3);
 	read(filedesc, buf2, 3);
 	close(filedesc);
-	filedesc = open(FNAME);
-	read(filedesc, buf2, 3);
-	close(filedesc);
-	read(filedesc, buf2, 1); 
-	filedesc = open(FNAME);
-	unlink(FNAME);
-	read(filedesc, buf2, 1);
-	close(filedesc);
-	open(filedesc);
-	read(filedesc, buf2, 1);
-
+	
 	exit(0);
 
     	halt();
