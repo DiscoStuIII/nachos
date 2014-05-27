@@ -35,6 +35,7 @@ public class UserProcess {
 	mutex.acquire();
 	processId = currentPID;
 	currentPID++;
+	processLeft++;
 	mutex.release();
     }
     
@@ -61,7 +62,8 @@ public class UserProcess {
 	if (!load(name, args))
 	    return false;
 	
-	new UThread(this).setName(name).fork();
+	uted = new UThread(this);
+	uted.setName(name).fork();
 
 	return true;
     }
@@ -432,6 +434,7 @@ public class UserProcess {
      * Handle the halt() system call. 
      */
     private int handleHalt() {
+	Lib.debug(dbgProcess, "syscall halt");
 	if(processId == 0) {
 		Machine.halt();
 		Lib.assertNotReached("Machine.halt() did not halt machine!");
@@ -588,6 +591,100 @@ public class UserProcess {
 
     }
 
+	
+    //Create and execute a children, fork()
+    private int handleExec(int filedesc, int argc, int argv) {
+	Lib.debug(dbgProcess, "syscall exec: " + filedesc); 
+	String filestring = readVirtualMemoryString(filedesc, 255);
+
+	UserProcess p = newUserProcess();
+	//Check errors	
+	if( (filestring == null) || (argc < 0) || (p == null)) {
+		Lib.debug(dbgProcess, "syscall exec error"); 
+		return -1;
+	}
+	//Check if it is .coff the filestring
+	String[] parts = filestring.split("\\.coff");
+	System.out.println(parts[0]);
+	if(parts.length != 1) {
+		Lib.debug(dbgProcess, "syscall exec is not coff "); 
+		return -1; 		
+	}
+	
+
+	//Read the params for the children
+	byte[] params = new byte[argc * 4];
+	readVirtualMemory(argv, params);		
+
+	String[] childParams = new String[argc];
+	for(int i = 0; i < argc; i++) {
+		childParams[i] = readVirtualMemoryString(Lib.bytesToInt(params, i*4), 255);
+	}
+	
+	//Try to execute children
+	boolean exec = p.execute(filestring, childParams);
+	if(!exec) {
+		Lib.debug(dbgProcess, "syscall exec execute fail"); 	
+		return -1;	
+	}
+	//Save childrens information
+	children.put(p.processId, p);
+	p.parent = this;
+	return p.processId;
+	
+    }	
+
+    // Join a child	
+    private int handleJoin(int childrenId, int status) {
+	Lib.debug(dbgProcess, "syscall join "); 
+	UserProcess child = children.get(childrenId);
+	//Is not my child
+	if(child == null) {
+		Lib.debug(dbgProcess, "syscall join not my child");
+		return -1;	
+	}	
+	child.uted.join();
+	
+	//need to pass the status to an array of bytes
+	
+	//	test without passing it to bytes		
+	writeVirtualMemory(status, Lib.bytesFromInt(childStatus));
+	children.remove(childrenId);	
+	
+	//Child finish because an error
+	if (childStatus < 0) {
+		Lib.debug(dbgProcess, "syscall join child with errors");
+		return 0;
+	}
+	
+	return 1;
+    }
+
+    // Finish working	
+    private void handleExit(int status){
+	Lib.debug(dbgProcess, "syscall exit "); 
+	if(parent != null) {
+		parent.childStatus = status;	
+	}	
+	//Close files	
+	for (OpenFile ofile: table.values()) {
+		ofile.close();
+	}
+
+	//Free load sections
+	unloadSections();
+	table.clear();
+
+	mutex.acquire();
+	processLeft--;
+	mutex.release();
+
+	if(processLeft == 0){
+		Kernel.kernel.terminate();
+	}
+	KThread.finish();
+    }
+
     private static final int
         syscallHalt = 0,
 	syscallExit = 1,
@@ -644,6 +741,12 @@ public class UserProcess {
 	    return handleClose(a0);
 	case syscallUnlink:
 	    return handleUnlink(a0);
+	case syscallExec:
+	    return handleExec(a0, a1, a2);
+	case syscallJoin:
+	    return handleJoin(a0, a1);
+	case syscallExit:
+	    handleExit(a0); 
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
 	    Lib.assertNotReached("Unknown system call!");
@@ -707,8 +810,14 @@ public class UserProcess {
     /*Page table*/
     protected Hashtable<Integer, OpenFile> table = new Hashtable<Integer, OpenFile>();
     protected int keyTable = 2; /*2 because 0 is for read and 1 is for write*/
-
-    	
-
-
+    /*For join, exec*/	
+    //Hashtable if are a lot of childrens
+    protected Hashtable<Integer, UserProcess> children = new Hashtable<Integer, UserProcess>();		
+    //to know if is a children to pass status		
+    protected UserProcess parent;	
+    protected int childStatus;	
+    //Know if there is still a process running	
+    public static int processLeft = 0;	
+    //To make join
+    protected UThread uted;
 }

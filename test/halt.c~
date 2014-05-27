@@ -12,15 +12,17 @@
 
 #include "syscall.h"
 #define FNAME "helloworld.txt"
-
+#define CHILD "test.coff"
 int
 main() {
 	
-    	int filedesc; 
+    	int filedesc, status;
+	char *childs = "test.coff"; 
     	char buf[128], buf2[128]; 
 	buf[0] = 'a';
 	buf[1] = 'b';
 	buf[2] = 'c';
+	/*Open,close,read,write,unlink test
 	filedesc = creat(FNAME);
 	filedesc = open(FNAME);
  	write(filedesc, buf, 3);
@@ -37,6 +39,11 @@ main() {
 	open(filedesc);
 	read(filedesc, buf2, 1);
 	*/
+	
+	int childID = exec(childs, 0, buf);
+	join(childID, *status);
+	exit(0);	
+
     	halt();
     	/* not reached */
 }
