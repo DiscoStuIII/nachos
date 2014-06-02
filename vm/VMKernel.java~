@@ -57,14 +57,6 @@ public class VMKernel extends UserKernel {
 		}
     }	
 
-    //Get page of the inverted page table
-    public TranslationENtry getEntry(int processId, int virtualpn){
-	iptKey key = new iptKey(processId, virtualpn);
-	return invertedpt.get(key);
-    } 	
-
-
-
 
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;

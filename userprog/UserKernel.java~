@@ -142,6 +142,12 @@ public class UserKernel extends ThreadedKernel {
 	return size;
    } 		
 
+   public static int free(int page) {
+	mutex.acquire();
+	physicPages.add(page);
+	mutex.release();
+   }	
+
 
     /** Globally accessible reference to the synchronized console. */
     public static SynchConsole console;
@@ -150,8 +156,8 @@ public class UserKernel extends ThreadedKernel {
     private static Coff dummy1 = null;
 
     /*Added, LinkedList of physical pages as recomended	and a lock*/
-    protected LinkedList<Integer> physicPages;
-    protected Lock mutex;
+    protected static LinkedList<Integer> physicPages;
+    protected static Lock mutex;
 
 
 }

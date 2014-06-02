@@ -29,8 +29,8 @@ public class UserProcess {
 	for (int i=0; i<numPhysPages; i++)
 	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
 
-	table.put(0, UserKernel.console.openForReading());
-	table.put(1, UserKernel.console.openForWriting());
+	fileDesc.put(0, UserKernel.console.openForReading());
+	fileDesc.put(1, UserKernel.console.openForWriting());
 
 	mutex.acquire();
 	processId = currentPID;
@@ -251,6 +251,7 @@ public class UserProcess {
 		//Get physical address 
 		ppn = pageTable[i].ppn;
 		pageTable[i].used = true;
+		pageTable[i].dirty = true;
 		paddr = (ppn * pageSize) + physicalOffset;
 		
 		//Copy from data, starting in the data offset to the memory, starting in paddr and ending in bytesCopy
@@ -377,7 +378,7 @@ public class UserProcess {
 	    }
 	    //Get pages
 	    pageTable[i].ppn = UserKernel.getPage();
-            //pageTable[i].used = true;
+            pageTable[i].used = true;
 	}
 
 	// load sections
@@ -407,6 +408,11 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+	//free physical pages that are in this process page table
+	for (TranslationEntry t : pageTable) {
+		t.used = false;		
+		UserKernel.returnPage(t.ppn);
+	}
     }    
 
     /**
@@ -468,7 +474,7 @@ public class UserProcess {
 	} 
 	
 	int keyReturn = keyTable;
-	table.put(keyReturn, ofile);
+	fileDesc.put(keyReturn, ofile);
 	keyTable++;
 
 	return keyReturn; 
@@ -492,14 +498,14 @@ public class UserProcess {
     private int handleClose(int filedesc) {
 	Lib.debug(dbgProcess, "syscall close: " + filedesc); 
 
-	OpenFile ofile = table.get(filedesc);
+	OpenFile ofile = fileDesc.get(filedesc);
 	if (ofile == null) {
 		Lib.debug(dbgProcess, "syscall close error");	
 		return -1;
 	}
  
 	ofile.close();
-	table.remove(filedesc);  
+	fileDesc.remove(filedesc);  
 	
 	return 0;
 
@@ -509,7 +515,7 @@ public class UserProcess {
      * Unlink, delete a file.
      * filedesc = virtual memory address of the filename 
      * filesystem.remove takes care of this :)
-     * Don't close the file, so don't go to table
+     * Don't close the file, so don't go to fileDesc
      */		
 
     private int handleUnlink(int filedesc) {
@@ -538,7 +544,7 @@ public class UserProcess {
     private int handleRead(int filedesc, int buff, int length) {
 	Lib.debug(dbgProcess, "syscall read: " + filedesc); 
 	
-	OpenFile ofile = table.get(filedesc);
+	OpenFile ofile = fileDesc.get(filedesc);
 	if(ofile == null) {
 		Lib.debug(dbgProcess, "syscall read error");
 		return -1;
@@ -573,7 +579,7 @@ public class UserProcess {
 	
 	String data = readVirtualMemoryString(buff, length);
 
-	OpenFile ofile = table.get(filedesc);
+	OpenFile ofile = fileDesc.get(filedesc);
 	if(ofile == null) {
 		Lib.debug(dbgProcess, "syscall write error");
 		return -1;
@@ -668,13 +674,13 @@ public class UserProcess {
 		parent.childStatus = status;	
 	}	
 	//Close files	
-	for (OpenFile ofile: table.values()) {
+	for (OpenFile ofile: fileDesc.values()) {
 		ofile.close();
 	}
 
 	//Free load sections
 	unloadSections();
-	table.clear();
+	fileDesc.clear();
 
 	mutex.acquire();
 	processLeft--;
@@ -808,8 +814,8 @@ public class UserProcess {
     public static int currentPID = 0;
     /*Lock, always usefull*/
     public static Lock mutex = new Lock();			
-    /*Page table*/
-    protected Hashtable<Integer, OpenFile> table = new Hashtable<Integer, OpenFile>();
+    /*File descriptor*/
+    protected Hashtable<Integer, OpenFile> fileDesc = new Hashtable<Integer, OpenFile>();
     protected int keyTable = 2; /*2 because 0 is for read and 1 is for write*/
     /*For join, exec*/	
     //Hashtable if are a lot of childrens

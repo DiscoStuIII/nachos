@@ -49,7 +49,6 @@ public class VMProcess extends UserProcess {
      *
      * @return	<tt>true</tt> if successful.
      */
-    @Override
     protected boolean loadSections() {		
 	//nothing loaded(lazy loader), so invalid the pages(cuz UserProcess set it valid)
 
