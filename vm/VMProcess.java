@@ -91,7 +91,8 @@ public class VMProcess extends UserProcess {
 		TranslationEntry page = vmk.getEntry(processId, virtualPage);
 
 		//if page is not in the inverted page table or is nos in memory(valid), maybe is in swap
-		/*	3.2  
+		
+		// 3.2
 		if(page == null || page.valid == false) {
 			Lib.debug(dbgVM, "Page fault");
 			//Check the page is in range
@@ -101,8 +102,9 @@ public class VMProcess extends UserProcess {
 
 			
 		}	
-		*/
 		
+		//
+
 		//write the page in the TLB process
 		//the TLB write pages are in FIFO 
 		if (TLBnumber == Machine.processor().getTLBSize()){

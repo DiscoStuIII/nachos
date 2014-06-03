@@ -6,6 +6,7 @@ import nachos.userprog.*;
 
 import java.io.EOFException;
 import java.util.Hashtable;
+import java.nio.ByteBuffer;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -103,12 +104,10 @@ public class UserProcess {
 	byte[] bytes = new byte[maxLength+1];
 
 	int bytesRead = readVirtualMemory(vaddr, bytes);
-
 	for (int length=0; length<bytesRead; length++) {
 	    if (bytes[length] == 0)
 		return new String(bytes, 0, length);
 	}
-
 	return null;
     }
 
@@ -250,7 +249,8 @@ public class UserProcess {
 		
 		//Get physical address 
 		ppn = pageTable[i].ppn;
-		//pageTable[i].used = true;
+		pageTable[i].used = true;
+		pageTable[i].dirty = true;
 		paddr = (ppn * pageSize) + physicalOffset;
 		
 		//Copy from data, starting in the data offset to the memory, starting in paddr and ending in bytesCopy
@@ -453,13 +453,13 @@ public class UserProcess {
     
     /**
      * Create a new file.
-     * filedesc = virtual memory address of the filename 
+     * filename = virtual memory address of the filename 
      * tf = true to create, false to open
      */	
-    private int handleCreat(int filedesc, boolean tf) { 
-	Lib.debug(dbgProcess, "syscall creat: " + filedesc); 
+    private int handleCreat(int filename, boolean tf) { 
+	Lib.debug(dbgProcess, "syscall creat: " + filename); 
 
-	String filestring = readVirtualMemoryString(filedesc, 255);
+	String filestring = readVirtualMemoryString(filename, 255);
 	if (filestring == null) {
 		Lib.debug(dbgProcess, "syscall creat error"); 
 		return -1;
@@ -481,30 +481,30 @@ public class UserProcess {
 
      /**
      * Open a file.
-     * filedesc = virtual memory address of the filename 
+     * filename = virtual memory address of the filename 
      * practically the same as create, but with false
      */		
 
-    private int handleOpen(int filedesc) {
-	Lib.debug(dbgProcess, "syscall open: " + filedesc); 
-	return handleCreat(filedesc, false);
+    private int handleOpen(int filename) {
+	Lib.debug(dbgProcess, "syscall open: " + filename); 
+	return handleCreat(filename, false);
     }
      /**
      * Close a file.
-     * filedesc = virtual memory address of the filename 
+     * filename = virtual memory address of the filename 
      */		
 
-    private int handleClose(int filedesc) {
-	Lib.debug(dbgProcess, "syscall close: " + filedesc); 
+    private int handleClose(int filename) {
+	Lib.debug(dbgProcess, "syscall close: " + filename); 
 
-	OpenFile ofile = fileDesc.get(filedesc);
+	OpenFile ofile = fileDesc.get(filename);
 	if (ofile == null) {
 		Lib.debug(dbgProcess, "syscall close error");	
 		return -1;
 	}
  
 	ofile.close();
-	fileDesc.remove(filedesc);  
+	fileDesc.remove(filename);  
 	
 	return 0;
 
@@ -512,15 +512,15 @@ public class UserProcess {
 
      /**
      * Unlink, delete a file.
-     * filedesc = virtual memory address of the filename 
+     * filename = virtual memory address of the filename 
      * filesystem.remove takes care of this :)
      * Don't close the file, so don't go to fileDesc
      */		
 
-    private int handleUnlink(int filedesc) {
-	Lib.debug(dbgProcess, "syscall unlink: " + filedesc); 
+    private int handleUnlink(int filename) {
+	Lib.debug(dbgProcess, "syscall unlink: " + filename); 
 
-	String filestring = readVirtualMemoryString(filedesc, 255);
+	String filestring = readVirtualMemoryString(filename, 255);
 	if (filestring == null) {
 		Lib.debug(dbgProcess, "syscall unlink error");
 		return -1;
@@ -534,32 +534,32 @@ public class UserProcess {
 
      /**
      * Read a file.
-     * filedesc = virtual memory address of the filename 	
+     * filename = virtual memory address of the filename 	
      * buff = to store what it reads
      * length = how many bytes read
      * OpenFile.read takes care of the pointer in the file :)
      */		
 
-    private int handleRead(int filedesc, int buff, int length) {
-	Lib.debug(dbgProcess, "syscall read: " + filedesc); 
+    private int handleRead(int filename, int buff, int length) {
+	Lib.debug(dbgProcess, "syscall read: " + filename); 
 	
-	OpenFile ofile = fileDesc.get(filedesc);
+	OpenFile ofile = fileDesc.get(filename);
 	if(ofile == null) {
 		Lib.debug(dbgProcess, "syscall read error");
 		return -1;
-	}	
-
+	} 	
+	
 	byte[] data = new byte[length];
 	int bytesRead = ofile.read(data, 0, length);
 
 	/*put the data in buff*/
 	writeVirtualMemory(buff, data);
 
-	/* See whats read*/
+	/* See whats read
 	for(int i = 0; i < data.length; i++) {
 		System.out.println(data[i]);
 	}
-	
+	*/
 	
 	return bytesRead;
 
@@ -567,19 +567,19 @@ public class UserProcess {
 
      /**
      * Write in a file.
-     * filedesc = virtual memory address of the filename 	
+     * filename = virtual memory address of the filename 	
      * buff = data to write
      * lenght = length of what we gona write
      * OpenFile.write takes care of the pointer in the file :)
      */		
 
-    private int handleWrite(int filedesc, int buff, int length) {
-	Lib.debug(dbgProcess, "syscall write: " + filedesc); 
+    private int handleWrite(int filename, int buff, int length) {
+	Lib.debug(dbgProcess, "syscall write: " + filename); 
 	
-	String data = readVirtualMemoryString(buff, length);
+	String data = readVirtualMemoryString(buff, 255);
 
-	OpenFile ofile = fileDesc.get(filedesc);
-	if(ofile == null) {
+	OpenFile ofile = fileDesc.get(filename);
+	if(ofile == null || length < 0) {
 		Lib.debug(dbgProcess, "syscall write error");
 		return -1;
 	}
@@ -591,28 +591,26 @@ public class UserProcess {
 	}
 
 	
-	/* See whats write*/
+	/* See whats write
 	System.out.println(data);
-
+	*/
 	return bytesWrite;
 
     }
 
 	
     //Create and execute a children, fork()
-    private int handleExec(int filedesc, int argc, int argv) {
-	Lib.debug(dbgProcess, "syscall exec: " + filedesc); 
-	String filestring = readVirtualMemoryString(filedesc, 255);
+    private int handleExec(int filename, int argc, int argv) {
+	Lib.debug(dbgProcess, "syscall exec: " + filename); 
+	String filestring = readVirtualMemoryString(filename, 255);
 
 	UserProcess p = newUserProcess();
 	//Check errors	
 	if( (filestring == null) || (argc < 0) || (p == null)) {
-		Lib.debug(dbgProcess, "syscall exec error"); 
 		return -1;
 	}
 	//Check if it is .coff the filestring
 	String[] parts = filestring.split("\\.coff");
-	System.out.println(parts[0]);
 	if(parts.length != 1) {
 		Lib.debug(dbgProcess, "syscall exec is not coff "); 
 		return -1; 		
@@ -620,13 +618,21 @@ public class UserProcess {
 	
 
 	//Read the params for the children
-	byte[] params = new byte[argc * 4];
-	readVirtualMemory(argv, params);		
-
+ 
 	String[] childParams = new String[argc];
-	for(int i = 0; i < argc; i++) {
-		childParams[i] = readVirtualMemoryString(Lib.bytesToInt(params, i*4), 255);
+	String aux;
+	int position = argv;
+	
+	for(int i = 0; i < argc; i++) {		
+		aux = readVirtualMemoryString(position, 255);
+		position = position + aux.length() + 1;	
+		childParams[i] = aux;
 	}
+	
+
+	//Save childrens information
+	children.put(p.processId, p);
+	p.parent = this;
 	
 	//Try to execute children
 	boolean exec = p.execute(filestring, childParams);
@@ -634,9 +640,7 @@ public class UserProcess {
 		Lib.debug(dbgProcess, "syscall exec execute fail"); 	
 		return -1;	
 	}
-	//Save childrens information
-	children.put(p.processId, p);
-	p.parent = this;
+	
 	return p.processId;
 	
     }	
@@ -653,8 +657,8 @@ public class UserProcess {
 	child.uted.join();
 	
 	//need to pass the status to an array of bytes
-			
-	writeVirtualMemory(status, Lib.bytesFromInt(childStatus));
+	byte[] b = ByteBuffer.allocate(4).putInt(childStatus).array(); 		
+	writeVirtualMemory(status, b);
 	children.remove(childrenId);	
 	
 	//Child finish because an error
@@ -690,6 +694,7 @@ public class UserProcess {
 	}
 	KThread.finish();
     }
+
 
     private static final int
         syscallHalt = 0,

@@ -6,7 +6,7 @@
 #define FNAME "helloworld2.txt"
 
 int
-main() {
+main(int argc, char *argv[]) {
 	
     	int filedesc; 
     	char buf[128], buf2[128]; 
@@ -16,10 +16,15 @@ main() {
 
 	filedesc = creat(FNAME);
 	filedesc = open(FNAME);
- 	write(filedesc, buf, 3);
-	read(filedesc, buf2, 3);
+	printf("%d", argc);
+	printf("%s", argv[0]);
+	write(filedesc, *argv, argc);
 	close(filedesc);
-	
+	filedesc = open(FNAME);	
+	read(filedesc, buf2, 3);
+
+
+
 	exit(1);
 
     	halt();

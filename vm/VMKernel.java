@@ -15,6 +15,9 @@ public class VMKernel extends UserKernel {
      */
     public VMKernel() {
 	super();
+	invertedpt = new Hashtable<istKey, TranslationEntry>();	
+	swappt = new Hashtable<istKey, Integer>();
+	swapFile = Machine.stubFileSystem().open("swapFile", true); 	
     }
 
     /**
@@ -46,24 +49,35 @@ public class VMKernel extends UserKernel {
     }
 
     //Added
-    //key for the inverted page table = need process ID and virtual page number	
-    public class iptKey {
+    //key for the inverted page table and swap physical table, need process ID and virtual page number	
+    public class istKey {
 	public int processID;
 	public int virtualPN;
 
-		public iptKey(int pid, int vpn) {
+		public istKey(int pid, int vpn) {
 			processID = pid;
 			virtualPN = vpn;
 		}
     }	
 
     //Get page of the inverted page table
-    public TranslationENtry getEntry(int processId, int virtualpn){
-	iptKey key = new iptKey(processId, virtualpn);
+    public TranslationEntry getEntry(int processId, int virtualpn){
+	istKey key = new istKey(processId, virtualpn);
 	return invertedpt.get(key);
     } 	
 
+    //Put page in the swap file
+    //Used only when the invertedpt needs space and the page is dirty
+    public void putSwap(processId, virtualpn, physicpn, TranslationEntry){
+	
 
+    }		
+
+
+    //Get page of the swap file
+    public TranslationEntry getSwap(){
+	
+    }
 
 
     // dummy variables to make javac smarter
@@ -73,5 +87,9 @@ public class VMKernel extends UserKernel {
 
     //Added
     //Inverted Page Table, here like the linked list of the physical pages(phase 2) to be global for the process	
-    protected static Hashtable<iptKey, TranslationEntry> invertedpt = new Hashtable<iptKey, TranslationEntry>();	
+    protected static Hashtable<istKey, TranslationEntry> invertedpt;
+    //Swap Physical table spt	
+    protected static swappt Hashtable<istKey, Integer> swappt;
+    protected OpenFile swapFile;	
+	
 }

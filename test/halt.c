@@ -18,7 +18,7 @@ main() {
 	
     	int filedesc, status;
 	char *childs = "test.coff"; 
-    	char buf[128], buf2[128]; 
+    	char buf[3], buf2[128]; 
 	buf[0] = 'a';
 	buf[1] = 'b';
 	buf[2] = 'c';
@@ -39,11 +39,10 @@ main() {
 	open(filedesc);
 	read(filedesc, buf2, 1);
 	*/
-	
-	int childID = exec(childs, 0, buf);
+	int childID = exec(childs, 2, buf);
 	join(childID, status);
 	exit(1);	
-
+	
     	halt();
     	/* not reached */
 }
