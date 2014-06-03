@@ -145,7 +145,7 @@ public class UserProcess {
 	
 	//Check that the start of reading is in range of the memory 	
 	if (vaddr < 0 || vaddr >= memory.length) {
-		handleExit(0); //Invalid, then exit	    
+		handleExit(-1); //Invalid, kill process    
 		return 0;
 	}
 	//If what we read is in more than one page, then we have to check many pages :s
@@ -227,7 +227,7 @@ public class UserProcess {
 	
 	//Check that the start of writing is in range of the memory 	
 	if (vaddr < 0 || vaddr >= memory.length){
-		handleExit(0); //Invalid, then exit	    
+		handleExit(-1); //Invalid, kill process	    
 		return 0;
 	}
 	//If what we write is in more than one page, then we have to check many pages :s
@@ -666,15 +666,23 @@ public class UserProcess {
 		Lib.debug(dbgProcess, "syscall join child with errors");
 		return 0;
 	}
-	
+
 	return 1;
     }
 
     // Finish working	
     private void handleExit(int status){
 	Lib.debug(dbgProcess, "syscall exit "); 
+	//if status is -1 => error, kills thread status is -1	
+	if(status != -1){
+		//Exit normally put status in 0
+		byte[] b = ByteBuffer.allocate(4).putInt(0).array(); 	
+		writeVirtualMemory(status, b);
+	}	
+
 	if(parent != null) {
 		parent.childStatus = status;	
+		parent = null;
 	}	
 	//Close files	
 	for (OpenFile ofile: fileDesc.values()) {

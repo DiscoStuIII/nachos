@@ -16,8 +16,8 @@ main(int argc, char *argv[]) {
 
 	filedesc = creat(FNAME);
 	filedesc = open(FNAME);
-	printf("%d", argc);
-	printf("%s", argv[0]);
+	printf("%d \n", argc);
+	printf("%s \n", argv[0]);
 	write(filedesc, *argv, argc);
 	close(filedesc);
 	filedesc = open(FNAME);	

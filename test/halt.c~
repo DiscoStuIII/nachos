@@ -39,8 +39,9 @@ main() {
 	open(filedesc);
 	read(filedesc, buf2, 1);
 	*/
-	int childID = exec(childs, 3, buf);
+	int childID = exec(childs, 2, buf);
 	join(childID, status);
+	printf("%d /n", status);
 	exit(1);	
 	
     	halt();

@@ -41,6 +41,7 @@ main() {
 	*/
 	int childID = exec(childs, 2, buf);
 	join(childID, status);
+	printf("%d \n", status);
 	exit(1);	
 	
     	halt();
