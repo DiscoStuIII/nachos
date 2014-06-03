@@ -34,7 +34,9 @@ public class KThread {
 	 * @return	the current thread.
 	 */
 	public static KThread currentThread() {
+	//System.out.println("asserting...");
 	Lib.assertTrue(currentThread != null);
+	//System.out.println("asserted!");
 	return currentThread;
 	}
 	
@@ -69,8 +71,8 @@ public class KThread {
 	 * @param	target	the object whose <tt>run</tt> method is called.
 	 */
 	public KThread(Runnable target) {
-	this();
-	this.target = target;
+		this();
+		this.target = target;
 	}
 
 	/**
@@ -199,7 +201,9 @@ public class KThread {
 
 		Machine.autoGrader().finishingCurrentThread();
 
+		//System.out.println("asserting...");
 		Lib.assertTrue(toBeDestroyed == null);
+		//System.out.println("asserted!");
 		toBeDestroyed = currentThread;
 
 		currentThread.status = statusFinished;
@@ -384,9 +388,11 @@ public class KThread {
 	protected void restoreState() {
 	Lib.debug(dbgThread, "Running thread: " + currentThread.toString());
 	
+	//System.out.println("\tasserting...");
 	Lib.assertTrue(Machine.interrupt().disabled());
 	Lib.assertTrue(this == currentThread);
 	Lib.assertTrue(tcb == TCB.currentTCB());
+	//System.out.println("\tasserted!	");
 
 	Machine.autoGrader().runningThread(this);
 	

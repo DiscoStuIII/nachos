@@ -13,7 +13,7 @@ public class UserKernel extends ThreadedKernel {
      * Allocate a new user kernel.
      */
     public UserKernel() {
-	super();
+	   super();
     }
 
     /**
@@ -42,20 +42,24 @@ public class UserKernel extends ThreadedKernel {
      * Test the console device.
      */	
     public void selfTest() {
-	super.selfTest();
+    	super.selfTest();
 
-	System.out.println("Testing the console device. Typed characters");
-	System.out.println("will be echoed until q is typed.");
+        //DEBUG
+        System.out.println("LotteryScheduler selfTest called from UserKernel");
+        LotteryScheduler.selfTest();
 
-	char c;
+    	System.out.println("Testing the console device. Typed characters");
+    	System.out.println("will be echoed until q is typed.");
 
-	do {
-	    c = (char) console.readByte(true);
-	    console.writeByte(c);
-	}
-	while (c != 'q');
+    	char c;
 
-	System.out.println("");
+    	do {
+    	    c = (char) console.readByte(true);
+    	    console.writeByte(c);
+    	}
+    	while (c != 'q');
+
+    	System.out.println("");
     }
 
     /**

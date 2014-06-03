@@ -135,6 +135,34 @@ public class PriorityScheduler extends Scheduler {
 		return (ThreadState) thread.schedulingState;
 	}
 
+
+	static protected void changeEffectivePriority (PriorityQueue pq, ThreadState ts, int val) {
+			//no hay colas de espera, cambiar y regresar
+			if (pq == null) {
+				ts.setEffectivePriority(val);
+				return;
+			}
+
+			//remover, actualizar y colocar
+			pq.threadQueue.remove(ts);
+			ts.setEffectivePriority(val);
+			System.out.println("agregado en changeEffectivePriority");
+			pq.threadQueue.add(ts);
+
+			//si la ultima donacion no corresponde con el thread de turno
+			if (pq.lastDonation != pq.threadQueue.peek().getEffectivePriority()) {
+				//quitar donacion y hacer la nueva
+				if (pq.transferPriority) {
+					pq.holder.revoke(pq.lastDonation);
+					pq.holder.donate(val);
+				}
+				pq.lastDonation = val;
+			}
+		}
+
+
+
+
 	/**
 	 * A <tt>ThreadQueue</tt> that sorts threads by priority.
 	 */
@@ -166,6 +194,7 @@ public class PriorityScheduler extends Scheduler {
 
 			//agregar si no esta en cola de espera
 			if (!threadQueue.contains(ts))
+				System.out.println("agregado en waitForAccess");
 				threadQueue.add(getThreadState(thread));
 
 			if (ts.getEffectivePriority() > lastDonation) {
@@ -298,6 +327,10 @@ public class PriorityScheduler extends Scheduler {
 				changeEffectivePriority(waitingOnQueue, this, priority);
 		}
 
+		protected void setEffectivePriority(int priority) {
+			effectivePriority = priority;
+		}
+
 		/**
 		 * Called when <tt>waitForAccess(thread)</tt> (where <tt>thread</tt> is
 		 * the associated thread) is invoked on the specified priority queue.
@@ -360,6 +393,7 @@ public class PriorityScheduler extends Scheduler {
 			}
 		}
 
+/*
 		public void changeEffectivePriority (PriorityQueue pq, ThreadState ts, int val) {
 			//no hay colas de espera, cambiar y regresar
 			if (pq == null) {
@@ -370,6 +404,7 @@ public class PriorityScheduler extends Scheduler {
 			//remover, actualizar y colocar
 			pq.threadQueue.remove(ts);
 			ts.effectivePriority = val;
+			System.out.println("agregado en changeEffectivePriority");
 			pq.threadQueue.add(ts);
 
 			//si la ultima donacion no corresponde con el thread de turno
@@ -382,6 +417,7 @@ public class PriorityScheduler extends Scheduler {
 				pq.lastDonation = val;
 			}
 		}
+*/
 
 		//comparar para poder usar PriorityQueue de Java
 		public int compareTo (ThreadState o) {
