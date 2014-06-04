@@ -32,7 +32,7 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-	super.restoreState();
+	//super.restoreState();
 	
 	//Invalidate all the TLB entries on contex switch;
 	int numEntries = Machine.processor().getTLBSize();
@@ -86,12 +86,20 @@ public class VMProcess extends UserProcess {
 		int virtualAddress = Machine.processor().readRegister(Processor.regBadVAddr);
 			
 		int virtualPage = virtualAddress/pageSize;
-	
+		
+		//DEBUG
+		System.out.println("virtual addres " + virtualAddress);
+		System.out.println("virtual page " + virtualPage);	
+		//
+
+
 		//Get the page of the inverted page table
-		TranslationEntry page = vmk.getEntry(processId, virtualPage);
+		//If the page is not in the inverted, it search in swap or memory
+		TranslationEntry page = vmk.getEntry(processId, virtualPage, pageSize);
 
 		//if page is not in the inverted page table or is nos in memory(valid), maybe is in swap
-		/*	3.2  
+		
+		/*
 		if(page == null || page.valid == false) {
 			Lib.debug(dbgVM, "Page fault");
 			//Check the page is in range
@@ -101,13 +109,23 @@ public class VMProcess extends UserProcess {
 
 			
 		}	
-		*/
 		
+		*/
+
+
 		//write the page in the TLB process
 		//the TLB write pages are in FIFO 
 		if (TLBnumber == Machine.processor().getTLBSize()){
 			TLBnumber = 0;
 		}
+		//Check if what we going to replace is dirty		
+		TranslationEntry check = Machine.processor().readTLBEntry(TLBnumber);
+		if(check.dirty == true) {
+			System.out.println("dirty");
+			//vmk.putEntry(processId, check.vpn, check);
+		}
+		//
+	
 		Machine.processor().writeTLBEntry(TLBnumber, page);
 		TLBnumber++;
 		break;	
@@ -124,7 +142,7 @@ public class VMProcess extends UserProcess {
 
     //Added
     //VMKernel reference to hava access to the inverted page table
-    private VMKernel = vmk;
+    private VMKernel vmk;
     //to do a FIFO TLB and not just random	
     private int TLBnumber;			
 }

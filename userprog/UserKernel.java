@@ -25,14 +25,12 @@ public class UserKernel extends ThreadedKernel {
 
 	mutex = new Lock();
 	physicPages = new LinkedList<Integer>();
-	/*Add the number of physical pages*/
-
-	for(int i = 0; i < Machine.processor().getNumPhysPages(); i++) {
-		physicPages.add(i);
-	}
 
 	console = new SynchConsole(Machine.console());
-	
+		
+	for (int i = 0; i < Machine.processor().getNumPhysPages(); i++) {
+      		physicPages.add(i);
+   	}
 	Machine.processor().setExceptionHandler(new Runnable() {
 		public void run() { exceptionHandler(); }
 	    });
@@ -126,14 +124,14 @@ public class UserKernel extends ThreadedKernel {
 	mutex.acquire();
 	if(physicPages.size() > 0) {	
 		ret = physicPages.removeFirst();	
-	}
+	}	
 	mutex.release();
 	return ret;
     }
 
     public static void returnPage(int page) {
 	mutex.acquire();
-	if(page > 0){
+	if(page >= 0){
 		physicPages.add(page);		
 	}
 	mutex.release();
@@ -156,6 +154,5 @@ public class UserKernel extends ThreadedKernel {
     /*Added, LinkedList of physical pages as recomended	and a lock*/
     protected static LinkedList<Integer> physicPages;
     protected static Lock mutex;
-
 
 }

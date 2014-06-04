@@ -74,6 +74,7 @@ public class UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
+	System.out.println("HOla");
     }
 
     /**
@@ -666,8 +667,6 @@ public class UserProcess {
 		Lib.debug(dbgProcess, "syscall join child with errors");
 		return 0;
 	}
-	
-	System.out.println(status);
 
 	return 1;
     }
@@ -824,7 +823,7 @@ public class UserProcess {
 
     /*Added */	
     /*For Id process*/
-    private int processId;
+    public int processId;
     public static int currentPID = 0;
     /*Lock, always usefull*/
     public static Lock mutex = new Lock();			

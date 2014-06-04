@@ -13,7 +13,7 @@ public class UserKernel extends ThreadedKernel {
      * Allocate a new user kernel.
      */
     public UserKernel() {
-	super();
+	   super();
     }
 
     /**
@@ -25,14 +25,12 @@ public class UserKernel extends ThreadedKernel {
 
 	mutex = new Lock();
 	physicPages = new LinkedList<Integer>();
-	/*Add the number of physical pages*/
-
-	for(int i = 0; i < Machine.processor().getNumPhysPages(); i++) {
-		physicPages.add(i);
-	}
 
 	console = new SynchConsole(Machine.console());
-	
+		
+	for (int i = 0; i < Machine.processor().getNumPhysPages(); i++) {
+      		physicPages.add(i);
+   	}
 	Machine.processor().setExceptionHandler(new Runnable() {
 		public void run() { exceptionHandler(); }
 	    });
@@ -42,20 +40,24 @@ public class UserKernel extends ThreadedKernel {
      * Test the console device.
      */	
     public void selfTest() {
-	super.selfTest();
+    	super.selfTest();
 
-	System.out.println("Testing the console device. Typed characters");
-	System.out.println("will be echoed until q is typed.");
+        //DEBUG
+        System.out.println("LotteryScheduler selfTest called from UserKernel");
+        LotteryScheduler.selfTest();
 
-	char c;
+    	System.out.println("Testing the console device. Typed characters");
+    	System.out.println("will be echoed until q is typed.");
 
-	do {
-	    c = (char) console.readByte(true);
-	    console.writeByte(c);
-	}
-	while (c != 'q');
+    	char c;
 
-	System.out.println("");
+    	do {
+    	    c = (char) console.readByte(true);
+    	    console.writeByte(c);
+    	}
+    	while (c != 'q');
+
+    	System.out.println("");
     }
 
     /**
@@ -122,7 +124,7 @@ public class UserKernel extends ThreadedKernel {
 	mutex.acquire();
 	if(physicPages.size() > 0) {	
 		ret = physicPages.removeFirst();	
-	}
+	}	
 	mutex.release();
 	return ret;
     }
@@ -142,12 +144,6 @@ public class UserKernel extends ThreadedKernel {
 	return size;
    } 		
 
-   public static int free(int page) {
-	mutex.acquire();
-	physicPages.add(page);
-	mutex.release();
-   }	
-
 
     /** Globally accessible reference to the synchronized console. */
     public static SynchConsole console;
@@ -158,6 +154,5 @@ public class UserKernel extends ThreadedKernel {
     /*Added, LinkedList of physical pages as recomended	and a lock*/
     protected static LinkedList<Integer> physicPages;
     protected static Lock mutex;
-
 
 }

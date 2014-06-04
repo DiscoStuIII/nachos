@@ -822,7 +822,7 @@ public class UserProcess {
 
     /*Added */	
     /*For Id process*/
-    private int processId;
+    public int processId;
     public static int currentPID = 0;
     /*Lock, always usefull*/
     public static Lock mutex = new Lock();			
