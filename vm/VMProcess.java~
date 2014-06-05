@@ -88,71 +88,56 @@ public class VMProcess extends UserProcess {
 		int virtualPage = virtualAddress/pageSize;
 		
 		//Check the page is in range
-		if(virtualPage > pageTable.length || virtualPage < 1){
+		if(virtualPage > pageTable.length || virtualPage < 0){
 			Lib.debug(dbgVM, "Page out of range");
 			handleExit(-1);
 		}
 
+		System.out.println("processId "processId + " virtualPage " + virtualPage + " virtualAddress " + virtualAddress);
 		//Get the page of the inverted page table
 		TranslationEntry page; 
 		page = vmk.getEntry(processId, virtualPage, pageSize);
 
-		//if not in inverted get it from swap	
+		//if not in inverted load it from swap	
 		if(page == null || page.valid == false) {
 			Lib.debug(dbgVM, "Page fault");
-			page = vmk.getSwap(processId, virtualPage, pageSize);		
+			vmk.loadSwap(processId, virtualPage, pageSize);		
+			page = vmk.getEntry(processId, virtualPage, pageSize);
 		//if not in swap, load it	
 			if(page == null){
 			Lib.debug(dbgVM, "Load page");
 			vmk.loadEntry(processId, virtualPage, pageSize);
 		//Now loaded get it
-			page = vmk.getSwap(processId, virtualPage, pageSize);
-		//Put it in the inverted
-			System.out.println(page);
-			vmk.putEntry(processId, virtualPage,page);
-			System.out.println(page);
+			page = vmk.getEntry(processId, virtualPage, pageSize);
 			}
 		}
 
-		pageTable[virtualPage - 1] = page;
+		pageTable[virtualPage] = page;
 		
 		//Check if it is coff
 		//Practically same as loadSections from userprocess
-		CoffSection section = null;
-		boolean cof = false;
-		int j=0;
-		for(int i=0;(i<coff.getNumSections()) || !cof ;i++){
-			section = coff.getSection(i);
-			for(j = 0; j<section.getLength();j++){
-				if(section.getFirstVPN() + j == virtualPage){
-					//it is a .coff
-					cof = true;
-					break;
+		for(int s=0;(s<coff.getNumSections());s++){
+			CoffSection section = coff.getSection(s);
+			for(int i = 0; i<section.getLength(); i++){
+				if(section.getFirstVPN()+i == virtualPage){
+					 Lib.debug(dbgProcess, "\tinitializing " + section.getName()
+			      + " section (" + section.getLength() + " pages)");
+					pageTable[virtualPage].readOnly = section.isReadOnly();
+			section.loadPage(i, pageTable[virtualPage].ppn);
 				}
 			}
 		}
-
-		//if coff execute it, also is readonly 
-		if(cof){
-			pageTable[virtualPage -1].readOnly = true;
-			Lib.debug(dbgProcess, "\tinitializing " + section.getName() + " section (" + section.getLength() + " pages)");
-			section.loadPage(j, pageTable[virtualPage - 1].ppn);
-			
-			
-		}
+		//DEBUG FOR NOW
+		try{
+		Thread.sleep(2000);
+		}catch(Exception e){}
+		//
 
 		//write the page in the TLB process
 		//the TLB write pages are in FIFO 
 		if (TLBnumber == Machine.processor().getTLBSize()){
 			TLBnumber = 0;
 		}
-		//Check if what we going to replace is dirty		
-		TranslationEntry check = Machine.processor().readTLBEntry(TLBnumber);
-		if(check.dirty == true) {
-			System.out.println("dirty");
-			//vmk.putEntry(processId, check.vpn, check);
-		}
-		//
 		
 		Machine.processor().writeTLBEntry(TLBnumber, page);
 		TLBnumber++;

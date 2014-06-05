@@ -20,7 +20,8 @@ public class VMKernel extends UserKernel {
 	swappt = new Hashtable<istKey, TranslationEntry>();	
 	freeSwap = new LinkedList<Integer>();
 	swapCount = 0;
-	swapmemory = new Hashtable<Integer, Integer>();
+	swapmemory = new Hashtable<istKey, Integer>();
+
     }
 
     /**
@@ -29,6 +30,7 @@ public class VMKernel extends UserKernel {
     public void initialize(String[] args) {
 	super.initialize(args);
 	swapFile = Machine.stubFileSystem().open("swapFile.txt", true); 
+	mutex = new Lock();
     }
 
     /**
@@ -65,45 +67,130 @@ public class VMKernel extends UserKernel {
 			processID = pid;
 			virtualPN = vpn;
 		}
+
+		public int hashCode(){
+			return new String(processID + " " + virtualPN).hashCode();
+		}
+		public boolean equals(Object o){
+			if(!(o instanceof istKey)){
+				return false;
+			}
+			istKey key = (istKey)o;
+			return (key.processID == processID) && (key.virtualPN == virtualPN);
+		}
     }	
+    // Replace algorithm 	
+    public int algorithm(int pageSize){
+	mutex.acquire();			
+	if(freePages() == 0) {
+		System.out.println("algorithm");
+		Hashtable<istKey, Integer> haux = new Hashtable<istKey, Integer>();
+		int size = invertedpt.size();	
+		istKey[] aaux = invertedpt.keySet().toArray(new istKey[size]);
+		for(int i = 0; i < size;i++) {
+			haux.put(aaux[i], 10);
+		}
+		int count = 0;
+		int num = 10;
+		while(true){
+			if(invertedpt.get(aaux[count]).used) {
+				invertedpt.get(aaux[count]).used = false;
+			} else {
+				num = haux.get(aaux[count]);
+				if(num == 1){
+					break;
+				} else {
+					haux.put(aaux[count], num -1);
+				}
+			}
+			count++;	
+			if(count == size) {
+				count = 0;
+			}
+		}
+
+
+		istKey remkey = aaux[count];
+
+	//Return a page from the inverted because we need more pages
+		TranslationEntry taux =	invertedpt.get(remkey);		
+	
+	//if dirty the replace one, update swapfile		
+
+		if(taux.dirty){
+			byte[] memory = Machine.processor().getMemory();
+			byte[] toWrite = new byte[pageSize];
+			System.arraycopy(memory, taux.ppn*pageSize, toWrite, 0, pageSize);	
+			int swapPos = swapmemory.get(remkey);
+			swapFile.seek(swapPos*pageSize);
+			int write = swapFile.write(toWrite, 0 ,pageSize);
+			if(write != pageSize) {
+				Lib.debug(dbgVM, "Fatal error, couldn't write bytes to swap.");
+				terminate();
+			}
+		}
+
+		returnPage(taux.ppn);
+		invertedpt.remove(remkey);
+	}	
+	int ret = getPage();
+  	mutex.release();
+	return ret;
+   }	
+
     //Put page in the inverted page table
-    public void putEntry(int processId, int virtualpn, TranslationEntry t){
-	istKey key = new istKey(processId, virtualpn);		
+    public void putEntry(int processId, int virtualpn, TranslationEntry t){	
+	mutex.acquire();	
+	istKey key = new istKey(processId, virtualpn);
 	invertedpt.put(key, t);
+	mutex.release();
     } 	
 
 
     //Get page in the inverted page table
-    public TranslationEntry getEntry(int processId, int virtualpn, int pageSize){
-	istKey key = new istKey(processId, virtualpn);		
-	return invertedpt.get(key);
+    public TranslationEntry getEntry(int processId, int virtualpn, int pageSize){	
+	mutex.acquire();
+	istKey key = new istKey(processId, virtualpn);
+	TranslationEntry ret = invertedpt.get(key);
+	mutex.release();
+	return ret;
     } 	
 	 
-    //Get page in swap 
-    public TranslationEntry getSwap(int processId, int virtualpn ,int pageSize){
-	istKey key = new istKey(processId, virtualpn);		
-	return swappt.get(key);
+    //Load page in swap to inverted
+    public void loadSwap(int processId, int virtualpn ,int pageSize){	
+	mutex.acquire();
+	istKey key = new istKey(processId, virtualpn);	
+	if(swapmemory.containsKey(key)){
+		int swapPos = swapmemory.get(key);
+		byte[] buf = new byte[pageSize];
+		swapFile.seek(swapPos*pageSize);
+		int bytesRead = swapFile.read(buf, 0, pageSize);
+		if (bytesRead < pageSize){
+			terminate();
+		}
+		//Get new physic page
+		mutex.release();
+		int newphypage = algorithm(pageSize);
+		mutex.acquire();
+		TranslationEntry t = swappt.get(key);
+		t.ppn = newphypage;
+		//Save it in inverted
+		invertedpt.put(key, t);
+		//Update memory
+		byte[] memory = Machine.processor().getMemory();
+		System.arraycopy(buf, 0, memory, newphypage*pageSize, pageSize);
+
+	}
+	mutex.release();
+
     }	
 
 
-    //Load page to swap
+    //Load page to swap and inverted
     public void loadEntry(int processId, int virtualpn, int pageSize){	
 			
-			/* Replace algorithm  */
-	//For now just replace kind of random
-	if(freePages() == 0) {
-		istKey auxkey = invertedpt.keys().nextElement();	
-	
-	//Return a page from the inverted because we need more pages
-		TranslationEntry taux =	invertedpt.get(auxkey);		
-		returnPage(taux.ppn);
-		invertedpt.remove(auxkey);
-	}
-			/*End replacement algorithm*/	
-
-	
-	int phypage = getPage();
-	
+	int phypage = algorithm(pageSize);
+	mutex.acquire();
 	//When we need more pages for the swap we create it :3
 	if (freeSwap.size() == 0) {
 		freeSwap.add(swapCount);
@@ -111,24 +198,26 @@ public class VMKernel extends UserKernel {
 	}
 	
 	int swappage = freeSwap.removeFirst(); 	
-	istKey key = new istKey(processId, virtualpn);	
-
 
 	TranslationEntry newPage = new TranslationEntry(virtualpn, phypage, true, false, false, false);
 
+	istKey key = new istKey(processId, virtualpn);
+	//Save in swap and inverted
 	swappt.put(key,newPage);
-	swapmemory.put(swappage, phypage);
+	swapmemory.put(key, phypage);
+	invertedpt.put(key, newPage);
 	//Save in swap information of the memory
 	byte[] memory = Machine.processor().getMemory();
 	byte[] toWrite = new byte[pageSize];
 	System.arraycopy(memory, phypage*pageSize, toWrite, 0, pageSize);	
 	swapFile.seek(swappage*pageSize);
 	int write = swapFile.write(toWrite, 0 ,pageSize);
-	
+	mutex.release();
 	if(write != pageSize) {
 		Lib.debug(dbgVM, "Fatal error, couldn't write bytes to swap.");
 		terminate();
 	}
+	
     }		
 
 
@@ -146,9 +235,11 @@ public class VMKernel extends UserKernel {
     //Swap Physical table spt	
     protected  Hashtable<istKey, TranslationEntry> swappt;
     //Directions of memory in swap	
-    protected  Hashtable<Integer, Integer> swapmemory; 
+    protected  Hashtable<istKey, Integer> swapmemory; 
     protected  OpenFile swapFile;
     //Pages for the swapFile	
     protected  LinkedList<Integer> freeSwap;		
     protected int swapCount;	
+    public static Lock mutex;
+	
 }
