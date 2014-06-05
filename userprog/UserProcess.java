@@ -440,7 +440,7 @@ public class UserProcess {
     /**
      * Handle the halt() system call. 
      */
-    private int handleHalt() {
+    protected int handleHalt() {
 	Lib.debug(dbgProcess, "syscall halt");
 	if(processId == 0) {
 		Machine.halt();
@@ -456,7 +456,7 @@ public class UserProcess {
      * filename = virtual memory address of the filename 
      * tf = true to create, false to open
      */	
-    private int handleCreat(int filename, boolean tf) { 
+    protected int handleCreat(int filename, boolean tf) { 
 	Lib.debug(dbgProcess, "syscall creat: " + filename); 
 
 	String filestring = readVirtualMemoryString(filename, 255);
@@ -485,7 +485,7 @@ public class UserProcess {
      * practically the same as create, but with false
      */		
 
-    private int handleOpen(int filename) {
+    protected int handleOpen(int filename) {
 	Lib.debug(dbgProcess, "syscall open: " + filename); 
 	return handleCreat(filename, false);
     }
@@ -494,7 +494,7 @@ public class UserProcess {
      * filename = virtual memory address of the filename 
      */		
 
-    private int handleClose(int filename) {
+    protected int handleClose(int filename) {
 	Lib.debug(dbgProcess, "syscall close: " + filename); 
 
 	OpenFile ofile = fileDesc.get(filename);
@@ -517,7 +517,7 @@ public class UserProcess {
      * Don't close the file, so don't go to fileDesc
      */		
 
-    private int handleUnlink(int filename) {
+    protected int handleUnlink(int filename) {
 	Lib.debug(dbgProcess, "syscall unlink: " + filename); 
 
 	String filestring = readVirtualMemoryString(filename, 255);
@@ -540,7 +540,7 @@ public class UserProcess {
      * OpenFile.read takes care of the pointer in the file :)
      */		
 
-    private int handleRead(int filename, int buff, int length) {
+    protected int handleRead(int filename, int buff, int length) {
 	Lib.debug(dbgProcess, "syscall read: " + filename); 
 	
 	OpenFile ofile = fileDesc.get(filename);
@@ -573,7 +573,7 @@ public class UserProcess {
      * OpenFile.write takes care of the pointer in the file :)
      */		
 
-    private int handleWrite(int filename, int buff, int length) {
+    protected int handleWrite(int filename, int buff, int length) {
 	Lib.debug(dbgProcess, "syscall write: " + filename); 
 	
 	String data = readVirtualMemoryString(buff, 255);
@@ -600,7 +600,7 @@ public class UserProcess {
 
 	
     //Create and execute a children, fork()
-    private int handleExec(int filename, int argc, int argv) {
+    protected int handleExec(int filename, int argc, int argv) {
 	Lib.debug(dbgProcess, "syscall exec: " + filename); 
 	String filestring = readVirtualMemoryString(filename, 255);
 
@@ -646,7 +646,7 @@ public class UserProcess {
     }	
 
     // Join a child	
-    private int handleJoin(int childrenId, int status) {
+    protected int handleJoin(int childrenId, int status) {
 	Lib.debug(dbgProcess, "syscall join "); 
 	UserProcess child = children.get(childrenId);
 	//Is not my child
@@ -671,7 +671,7 @@ public class UserProcess {
     }
 
     // Finish working	
-    private void handleExit(int status){
+    protected void handleExit(int status){
 	Lib.debug(dbgProcess, "syscall exit "); 
 	//if status is -1 => error, kills thread status is -1	
 	if(status != -1){
