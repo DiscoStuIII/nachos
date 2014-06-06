@@ -95,6 +95,7 @@ public class VMKernel extends UserKernel {
 		while(true){
 			if(invertedpt.get(aaux[count]).used) {
 				invertedpt.get(aaux[count]).used = false;
+				haux.put(aaux[count], 10);
 			} else {
 				num = haux.get(aaux[count]);
 				if(num == 1){
@@ -240,6 +241,6 @@ public class VMKernel extends UserKernel {
     //Pages for the swapFile	
     protected  LinkedList<Integer> freeSwap;		
     protected int swapCount;	
-    public static Lock mutex;
+    public Lock mutex;
 	
 }

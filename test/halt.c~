@@ -39,9 +39,26 @@ main() {
 	open(filedesc);
 	read(filedesc, buf2, 1);
 	*/
+	char buf3[500];
+	char buf4[500];
+	int i;
+	for (i = 0; i < 500; i++) {
+		buf3[i] = 'a';
+	}
+	filedesc = creat(FNAME);
+	filedesc = open(FNAME);
+ 	int byteswrite = write(filedesc, buf3, 3);
+	printf("%d \n", byteswrite);
+	close(filedesc);
+	filedesc = open(FNAME);
+	int bytesread = read(filedesc, buf4, 1026);
+	printf("%d \n", bytesread);
+	close(filedesc);
+	/*
 	int childID = exec(childs, 2, buf);
 	join(childID, status);
-	printf("%d /n", status);
+	printf("%d \n", status);
+	*/
 	exit(1);	
 	
     	halt();

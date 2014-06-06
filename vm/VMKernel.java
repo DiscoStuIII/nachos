@@ -95,6 +95,7 @@ public class VMKernel extends UserKernel {
 		while(true){
 			if(invertedpt.get(aaux[count]).used) {
 				invertedpt.get(aaux[count]).used = false;
+				haux.put(aaux[count], 10);
 			} else {
 				num = haux.get(aaux[count]);
 				if(num == 1){
@@ -161,6 +162,7 @@ public class VMKernel extends UserKernel {
 	mutex.acquire();
 	istKey key = new istKey(processId, virtualpn);	
 	if(swapmemory.containsKey(key)){
+		//Read page from swap
 		int swapPos = swapmemory.get(key);
 		byte[] buf = new byte[pageSize];
 		swapFile.seek(swapPos*pageSize);

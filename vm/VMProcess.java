@@ -51,13 +51,15 @@ public class VMProcess extends UserProcess {
      */
     //@Override
     protected boolean loadSections() {		
+	//return super.loadSections();	
 	//nothing loaded(lazy loader), so invalid the pages(cuz UserProcess set it valid)
-
+	
 	int numPhysPages = Machine.processor().getNumPhysPages();
 	for (int i = 0; i < numPhysPages; i++){
 		pageTable[i].valid = false;
 	}
 	return true;
+	
 	
     }
 
@@ -83,16 +85,17 @@ public class VMProcess extends UserProcess {
 
 	case Processor.exceptionTLBMiss: 
 		Lib.debug(dbgVM, "TLB Miss");
-		int virtualAddress = Machine.processor().readRegister(Processor.regBadVAddr);
+		int virtualAddress = processor.readRegister(Processor.regBadVAddr);
 			
 		int virtualPage = virtualAddress/pageSize;
 		
 		//Check the page is in range
+		
 		if(virtualPage > pageTable.length || virtualPage < 0){
 			Lib.debug(dbgVM, "Page out of range");
 			handleExit(-1);
 		}
-
+		
 		System.out.println("processId " + processId + " virtualPage " + virtualPage + " virtualAddress " + virtualAddress);
 		//Get the page of the inverted page table
 		TranslationEntry page; 
@@ -111,9 +114,9 @@ public class VMProcess extends UserProcess {
 			page = vmk.getEntry(processId, virtualPage, pageSize);
 			}
 		}
+		System.out.println("physic page assigned " + page.ppn);
+		//pageTable[virtualPage] = page;
 
-		pageTable[virtualPage] = page;
-		
 		//Check if it is coff
 		//Practically same as loadSections from userprocess
 		for(int s=0;(s<coff.getNumSections());s++){
@@ -127,6 +130,7 @@ public class VMProcess extends UserProcess {
 				}
 			}
 		}
+		
 		//DEBUG FOR NOW
 		try{
 		Thread.sleep(2000);
@@ -135,11 +139,10 @@ public class VMProcess extends UserProcess {
 
 		//write the page in the TLB process
 		//the TLB write pages are in FIFO 
-		if (TLBnumber == Machine.processor().getTLBSize()){
+		if (TLBnumber == processor.getTLBSize()){
 			TLBnumber = 0;
 		}
-		
-		Machine.processor().writeTLBEntry(TLBnumber, page);
+		processor.writeTLBEntry(TLBnumber, page);
 		TLBnumber++;
 		break;	
 
